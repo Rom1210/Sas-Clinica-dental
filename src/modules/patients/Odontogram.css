@@ -1,0 +1,585 @@
+.odontogram-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 1rem;
+  align-items: center;
+  user-select: none;
+}
+
+.odontogram-row {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.odontogram-quadrant {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* Midline spacing */
+.quadrant-gap {
+  width: 2rem;
+}
+
+.tooth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 40px;
+}
+
+.tooth-svg {
+  width: 40px;
+  height: 40px;
+  background: white;
+}
+
+.tooth-surface {
+  fill: #fff;
+  stroke: #CBD5E1;
+  stroke-width: 1;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.tooth-surface:hover {
+  fill: #F1F5F9;
+  stroke: #94A3B8;
+}
+
+.tooth-surface.provisional {
+  stroke: #EF4444;
+  stroke-width: 3;
+}
+
+.tooth-surface.active {
+  fill: rgba(59, 130, 246, 0.2); /* Sutil indicator of selection */
+  stroke: #3b82f6;
+  stroke-width: 3;
+}
+
+.tooth-number {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0070AC; /* Brand Blue */
+  font-family: 'Inter', sans-serif;
+}
+
+.odontogram-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 1rem;
+  padding-left: 1rem;
+}
+
+.odontogram-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.info-icon {
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+/* Context Menu Styles */
+.tooth-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  padding: 4px 0;
+  font-family: 'Inter', sans-serif;
+  animation: menuFadeIn 0.15s ease-out;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  border-bottom: 1px solid #f1f5f9;
+  font-weight: 700;
+}
+
+.move-handle {
+  cursor: move;
+  color: #ef4444;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.move-handle:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.tooth-context-menu.dragging {
+  opacity: 0.9;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  user-select: none;
+}
+
+
+.menu-item-container {
+  position: relative;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  margin: 2px 0;
+  white-space: nowrap;
+}
+
+.menu-item:hover {
+  background: #f1f5f9;
+}
+
+.menu-item.active {
+  background: #eff6ff;
+  color: #3b82f6;
+  font-weight: 600;
+}
+ 
+.menu-item.selected-state {
+  background: #f0f9ff;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.menu-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selected-check {
+  color: #0284c7;
+}
+
+.arrow-trigger {
+  padding: 4px;
+  margin-right: -4px;
+}
+
+/* Submenu positioning */
+.menu-item-container {
+  position: relative;
+}
+
+.submenu.floating-submenu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  background: white;
+  min-width: 220px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 200;
+  margin-left: 0px;
+  transform-origin: left top;
+  animation: submenuFadeIn 0.2s ease-out;
+}
+
+.submenu.floating-submenu.submenu-left {
+  left: auto;
+  right: 100%;
+  transform-origin: right top;
+}
+
+/* Ensure submenus inside submenus also pop out correctly */
+.submenu .submenu.floating-submenu {
+  left: 100%;
+}
+
+.submenu.submenu-left .submenu.floating-submenu {
+  left: auto;
+  right: 100%;
+}
+
+@keyframes submenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-body {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+/* Scrollbar styling for a cleaner look */
+.menu-body::-webkit-scrollbar {
+  width: 6px;
+}
+.menu-body::-webkit-scrollbar-thumb {
+  background-color: #e2e8f0;
+  border-radius: 10px;
+}
+
+/* Clinical Icons */
+.menu-icon-wrapper {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-s {
+  color: #3b82f6;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.icon-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.icon-dot.red { background: #ef4444; }
+
+.icon-x {
+  position: relative;
+  width: 14px;
+  height: 14px;
+}
+.icon-x::before, .icon-x::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  top: 6px;
+  border-radius: 1px;
+}
+.icon-x::before { transform: rotate(45deg); }
+.icon-x::after { transform: rotate(-45deg); }
+.icon-x.red::before, .icon-x.red::after { background: #ef4444; }
+.icon-x.blue::before, .icon-x.blue::after { background: #3b82f6; }
+
+.icon-bar {
+  width: 3px;
+  height: 16px;
+  border-radius: 1px;
+}
+.icon-bar.red { background: #ef4444; }
+.icon-bar.blue { background: #3b82f6; }
+
+.icon-circle {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.icon-circle.red { background: #ef4444; }
+.icon-circle.blue { background: #3b82f6; }
+.icon-circle.mixed { 
+  background: linear-gradient(to right, #3b82f6 50%, #ef4444 50%);
+}
+
+.icon-restoration {
+  width: 6px;
+  height: 16px;
+}
+.icon-restoration.blue { background: #3b82f6; }
+.icon-restoration.mixed { background: linear-gradient(to bottom, #3b82f6 50%, #ef4444 50%); }
+.icon-restoration.outline-red { border: 2px solid #ef4444; }
+
+.icon-implante {
+  width: 12px;
+  height: 14px;
+  border: 2px solid;
+  border-top: none;
+}
+.icon-implante.red { border-color: #ef4444; }
+.icon-implante.blue { border-color: #3b82f6; }
+
+.icon-protesis {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+}
+.icon-protesis.red { background: #ef4444; }
+.icon-protesis.blue { background: #3b82f6; }
+
+.icon-eruption {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+.icon-eruption.red { border-color: #ef4444; }
+.icon-eruption.blue { border-color: #3b82f6; }
+
+.icon-rect {
+  width: 10px;
+  height: 10px;
+}
+.icon-rect.red { background: #ef4444; }
+.icon-rect.blue { background: #3b82f6; }
+.icon-rect.green { background: #22c55e; }
+.icon-ll {
+  display: flex;
+  gap: 4px;
+  height: 16px;
+  align-items: center;
+}
+.icon-ll::before, .icon-ll::after {
+  content: '';
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+}
+.icon-ll.red::before, .icon-ll.red::after { background: #ef4444; }
+.icon-ll.green::before, .icon-ll.green::after { background: #22c55e; }
+
+.icon-fracture {
+  width: 18px;
+  height: 18px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20,20 L80,40 L20,60 L80,80' fill='none' stroke='%23ef4444' stroke-width='15' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.icon-absent {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #94a3b8;
+  position: relative;
+}
+.icon-absent::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: #94a3b8;
+  top: 5px;
+  transform: rotate(45deg);
+}
+
+/* Row-wide Protesis Lines */
+.protesis-total-line {
+  position: absolute;
+  height: 4px;
+  width: 100%;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+.protesis-total-line.red { background-color: #ef4444; }
+.protesis-total-line.blue { background-color: #3b82f6; }
+
+.protesis-parcial-overlay {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0070AC;
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  font-weight: 600;
+}
+
+.protesis-parcial-overlay button {
+  background: white;
+  color: #0070AC;
+  padding: 0.25rem 1rem;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Tooth Symbol Overlays */
+.tooth-symbol { pointer-events: none; }
+/* symbol-s logic */
+.symbol-s { 
+  font-family: 'Inter', sans-serif;
+  font-weight: 900;
+  fill: #3b82f6;
+}
+
+.symbol-s.sano {
+  font-size: 70px;
+  fill: #0070AC;
+  font-weight: 950;
+}
+
+.symbol-s.sellante.green {
+  fill: #22c55e;
+}
+
+.symbol-s.sellante.red {
+  fill: #ef4444;
+}
+
+.symbol-sellante-ll line {
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.symbol-sellante-ll.red line { stroke: #ef4444; }
+.symbol-sellante-ll.green line { stroke: #22c55e; }
+
+
+.symbol-ausente line {
+  stroke: #94a3b8;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.symbol-circle.filled-red { fill: #ef4444; stroke: none; }
+.symbol-circle.filled-blue { fill: #3b82f6; stroke: none; }
+.symbol-circle.mixed { fill: url(#grad-mixed); stroke: none; }
+.symbol-circle.outline-red { fill: none; stroke: #ef4444; stroke-width: 4; }
+.symbol-circle.outline-blue { fill: none; stroke: #3b82f6; stroke-width: 4; }
+
+/* Exodoncia Symbol */
+.symbol-x line {
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.symbol-x.red line { stroke: #ef4444; }
+.symbol-x.blue line { stroke: #3b82f6; }
+
+/* Endodoncia Symbol */
+.symbol-bar {
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+.symbol-bar.red { stroke: #ef4444; }
+.symbol-bar.blue { stroke: #3b82f6; }
+
+/* Bracket marker for partial prosthesis */
+.bridge-marker-layer {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 30px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.bracket-marker {
+  width: 12px;
+  height: 100%;
+  border: 4px solid;
+  position: absolute;
+}
+
+.bracket-marker.start {
+  border-right: none;
+  left: -8px;
+}
+
+.bracket-marker.end {
+  border-left: none;
+  right: -8px;
+}
+
+.bracket-marker.blue { border-color: #3b82f6; }
+.bracket-marker.red { border-color: #ef4444; }
+
+.bridge-line-segment {
+  width: 100%;
+  height: 4px;
+}
+
+.bridge-line-segment.blue { background-color: #3b82f6; }
+.bridge-line-segment.red { background-color: #ef4444; }
+.symbol-implante { stroke-width: 8; fill: none; }
+.symbol-implante.red { stroke: #ef4444; }
+.symbol-implante.blue { stroke: #3b82f6; }
+
+/* Bridges Layer Stylings */
+.bridges-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.protesis-parcial-bridge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px;
+  border-bottom: 2px solid;
+  max-width: fit-content;
+  margin: 10px auto;
+}
+
+.protesis-parcial-bridge span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.bridge-line {
+  height: 2px;
+  width: 100px;
+}
