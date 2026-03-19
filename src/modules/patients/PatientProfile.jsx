@@ -1,13 +1,29 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useData } from '../../context/DataContext';
 import { ArrowLeft, Search, Plus, Filter, Info, ChevronLeft, ChevronRight, CheckCircle2, FileText, User, AlertCircle, Activity, ClipboardList, Clock, Pencil, Download, ChevronDown, Calendar } from 'lucide-react';
 import Odontogram from './Odontogram';
 import NewConsultationModal from '../consultations/NewConsultationModal';
 import NewTreatmentPlan from '../treatments/NewTreatmentPlan';
 
-const PatientProfile = ({ patient, onBack }) => {
+const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('General');
+  const { id } = useParams();
+  const { patients } = useData();
+  
+  // Support both prop-based and route-based patient loading
+  const [patient, setPatient] = useState(propPatient);
+  
+  useEffect(() => {
+    if (propPatient) {
+      setPatient(propPatient);
+    } else if (id && patients) {
+      const found = patients.find(p => p.id === id || p.id === parseInt(id));
+      if (found) setPatient(found);
+    }
+  }, [propPatient, id, patients]);
+
+  const onBack = propOnBack || (() => navigate('/patients'));
   const [showNewConsultModal, setShowNewConsultModal] = useState(false);
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -31,16 +47,7 @@ const PatientProfile = ({ patient, onBack }) => {
   });
 
   const handleScheduleAppointment = () => {
-    navigate('/scheduler', { 
-      state: { 
-        prefilledPatient: {
-          id: patient.id,
-          name: patient.name,
-          email: patient.email,
-          phone: patient.phone || '04244570903' // Using the mock phone from state if not in patient object
-        } 
-      } 
-    });
+    navigate(`/pacientes/${patient.id}/agendar-cita`);
   };
 
   React.useEffect(() => {
@@ -73,6 +80,8 @@ const PatientProfile = ({ patient, onBack }) => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  if (!patient) return <div className="p-10 text-center font-bold text-slate-500 uppercase tracking-widest">Cargando paciente...</div>;
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
       
@@ -87,9 +96,9 @@ const PatientProfile = ({ patient, onBack }) => {
 
         <button 
           onClick={handleScheduleAppointment}
-          className="flex items-center gap-2 px-5 py-2 bg-white border border-slate-200 text-slate-600 hover:text-primary hover:border-primary/30 rounded-xl transition-all text-xs font-black uppercase tracking-widest shadow-sm cursor-pointer group"
+          className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white hover:opacity-90 rounded-xl transition-all text-sm font-bold border-none cursor-pointer shadow-sm"
         >
-          <Calendar size={14} className="text-slate-400 group-hover:text-primary transition-colors" /> Agendar Cita
+          <Calendar size={16} /> Agendar Cita
         </button>
       </div>
 

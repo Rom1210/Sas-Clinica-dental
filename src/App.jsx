@@ -14,6 +14,8 @@ import {
 // Modules
 import PatientRegistration from './modules/patients/PatientRegistration';
 import PatientDashboard from './modules/patients/PatientDashboard';
+import PatientProfile from './modules/patients/PatientProfile';
+import ScheduleAppointment from './modules/patients/ScheduleAppointment';
 import FinanceModule from './modules/finance/FinanceModule';
 import PatientFinanceDetail from './modules/finance/PatientFinanceDetail';
 import Scheduler from './modules/scheduler/Scheduler';
@@ -115,6 +117,8 @@ const App = () => {
             <Route path="/" element={<BIDashboard />} />
             <Route path="/scheduler" element={<Scheduler />} />
             <Route path="/patients" element={<PatientDashboard />} />
+            <Route path="/pacientes/:id" element={<PatientProfile />} />
+            <Route path="/pacientes/:id/agendar-cita" element={<ScheduleAppointment />} />
             <Route path="/finance" element={<FinanceModule />} />
             <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
             <Route path="/settings" element={<SettingsManagement />} />

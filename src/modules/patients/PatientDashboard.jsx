@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Search, Filter, ChevronLeft, ChevronRight, MoreVertical, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PatientProfile from './PatientProfile';
 
 const PatientDashboard = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  
+
   const mockPatients = [
     { id: 1, name: 'Fabian Romero', dni: '31325708', email: 'fabanplay@gmail.com', lastVisit: '10 Mar 2026', status: 'Activo', debt: 0, gender: 'M' },
     { id: 2, name: 'Mariana Sosa', dni: '28123456', email: 'msosa@gmail.com', lastVisit: '05 Mar 2026', status: 'En Tratamiento', debt: 150, gender: 'F' },
@@ -29,9 +30,6 @@ const PatientDashboard = () => {
     }
   };
 
-  if (selectedPatient) {
-    return <PatientProfile patient={selectedPatient} onBack={() => setSelectedPatient(null)} />;
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,7 +99,7 @@ const PatientDashboard = () => {
                   {/* Quick Actions (visible on hover) */}
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                      <button 
-                        onClick={(e) => { e.stopPropagation(); setSelectedPatient(patient); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/pacientes/${patient.id}`); }}
                         className="px-4 py-2 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-600 rounded-xl hover:bg-primary hover:text-white transition-all border-none cursor-pointer"
                      >
                         Ver Perfil
