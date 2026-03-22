@@ -18,6 +18,7 @@ import { DataProvider, useData } from './context/DataContext';
 // Components
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import SetPassword from './components/auth/SetPassword';
 import TeamManagement from './modules/settings/TeamManagement';
 
 // Modules
@@ -55,6 +56,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/set-password" element={<SetPassword />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -176,6 +178,8 @@ const AppContent = () => {
               <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
               <Route path="/settings/new-doctor" element={<DoctorForm />} />
               <Route path="/settings/edit-doctor/:id" element={<DoctorForm />} />
+              <Route path="/settings/team" element={<TeamManagement />} />
+              <Route path="/set-password" element={<SetPassword />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           )}
