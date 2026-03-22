@@ -10,7 +10,10 @@ const NewConsultation = () => {
   const [patient, setPatient] = useState(null);
 
   const activeDoctors = React.useMemo(() => {
-    return (doctors || []).filter(d => (d.status || '').toLowerCase() === 'activo');
+    return (doctors || []).filter(d => {
+      const status = (d.status || '').toLowerCase();
+      return status === 'activo' || status === 'active';
+    });
   }, [doctors]);
 
   useEffect(() => {
@@ -113,7 +116,7 @@ const NewConsultation = () => {
             </h3>
             <div className="flex flex-col gap-4 ml-11">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeDoctors.map(doc => (
+                {activeDoctors.length > 0 ? activeDoctors.map(doc => (
                    <div 
                      key={doc.id}
                      onClick={() => setFormData({...formData, doctorId: doc.id})}
@@ -132,7 +135,11 @@ const NewConsultation = () => {
                         </div>
                       )}
                    </div>
-                ))}
+                )) : (
+                  <div className="col-span-full py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay miembros del equipo médico registrados</p>
+                  </div>
+                )}
               </div>
               {errors.doctorId && <span className="text-xs text-red-500 font-bold mt-1 px-2">Selecciona un doctor.</span>}
             </div>

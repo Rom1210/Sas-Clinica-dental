@@ -5,7 +5,7 @@ import { useData } from '../../context/DataContext';
 import { 
   Settings, Users, ClipboardList, RefreshCw, Plus, Save, 
   Trash2, ShieldCheck, Briefcase, X, Edit2, AlertTriangle, CheckCircle, 
-  Stethoscope, UserPlus
+  Stethoscope, UserPlus, ChevronRight
 } from 'lucide-react';
 
 const SettingsManagement = () => {

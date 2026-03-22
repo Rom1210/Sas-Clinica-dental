@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { ArrowLeft, Search, Plus, Filter, Info, ChevronLeft, ChevronRight, CheckCircle2, FileText, User, AlertCircle, Activity, ClipboardList, Clock, Pencil, Download, ChevronDown, Calendar } from 'lucide-react';
 import Odontogram from './Odontogram';
-import NewTreatmentPlan from '../treatments/NewTreatmentPlan';
+
 
 const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const navigate = useNavigate();
@@ -43,9 +43,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const onBack = propOnBack || (() => navigate('/patients'));
   const [activeTab, setActiveTab] = useState('General');
   const [showNewConsultModal, setShowNewConsultModal] = useState(false);
-  const [isCreatingPlan, setIsCreatingPlan] = useState(false);
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [savedPlans, setSavedPlans] = useState([]);
+
   const [toastMessage, setToastMessage] = useState(null);
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [personalInfo, setPersonalInfo] = useState({
@@ -86,7 +84,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
     }
   }, [patient]);
 
-  const tabs = ['General', 'Planes de tratamiento', 'Historia médica', 'Historia de pago'];
+  const tabs = ['General', 'Historia médica', 'Historia de pago'];
 
   if (!patient) return <div className="p-10 text-center font-bold text-slate-500 uppercase tracking-widest">Cargando paciente...</div>;
 
@@ -102,12 +100,6 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
           <ArrowLeft size={16} /> Volver a pacientes
         </button>
 
-        <button 
-          onClick={handleScheduleAppointment}
-          className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white hover:opacity-90 rounded-xl transition-all text-sm font-bold border-none cursor-pointer shadow-sm"
-        >
-          <Calendar size={16} /> Agendar Cita
-        </button>
       </div>
 
       {/* Top Patient Info Card - Hidden in Medical History to match Image 2's clean layout */}
@@ -181,22 +173,22 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">Consultas</h2>
                 <button 
-                  onClick={() => navigate(`/pacientes/${patient.id}/nueva-consulta`)}
+                  onClick={handleScheduleAppointment}
                   className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white hover:opacity-90 rounded-xl transition-all text-sm font-bold border-none cursor-pointer shadow-sm"
                 >
-                  <Plus size={16} /> Nueva consulta
+                  <Calendar size={16} /> Agendar Cita
                 </button>
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                  <div className="relative w-64">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <div className="flex items-center w-64 bg-slate-50 border border-slate-100 rounded-xl px-4 py-1.5 focus-within:bg-white focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5 transition-all shadow-sm">
                     <input 
                       type="text" 
                       placeholder="Buscar consulta..." 
-                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700"
+                      className="flex-1 bg-transparent border-none outline-none text-[13px] font-medium text-slate-600 placeholder:text-slate-400"
                     />
+                    <Search size={15} className="text-slate-400 transition-colors group-focus-within:text-primary ml-2" />
                   </div>
                 </div>
 
@@ -207,10 +199,10 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                       <h3 className="text-base font-bold text-slate-800">0 resultados.</h3>
                       <p className="text-sm text-slate-500">No hay registros creados hasta ahora.</p>
                       <button 
-                        onClick={() => navigate(`/pacientes/${patient.id}/nueva-consulta`)}
+                        onClick={handleScheduleAppointment}
                         className="mt-4 px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors cursor-pointer text-sm border-none shadow-none"
                       >
-                        Crear primera consulta
+                        Agendar primera cita
                       </button>
                     </div>
                   ) : (
@@ -288,95 +280,6 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
           </div>
         )}
 
-        {activeTab === 'Planes de tratamiento' && (
-          <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-            {isCreatingPlan ? (
-              <NewTreatmentPlan 
-                initialData={editingPlan}
-                onCancel={() => {
-                  setIsCreatingPlan(false);
-                  setEditingPlan(null);
-                }} 
-                onSave={(plan) => {
-                  if (editingPlan) {
-                    setSavedPlans(savedPlans.map(p => p.id === plan.id ? plan : p));
-                    setToastMessage("¡Plan actualizado!");
-                  } else {
-                    setSavedPlans([...savedPlans, plan]);
-                    setToastMessage("¡Plan creado!");
-                  }
-                  setTimeout(() => setToastMessage(null), 3000);
-                  setIsCreatingPlan(false);
-                  setEditingPlan(null);
-                }} 
-              />
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-slate-800">Planes de Tratamiento</h2>
-                  <button 
-                    onClick={() => setIsCreatingPlan(true)}
-                    className="flex items-center gap-2 px-8 py-3 bg-primary hover:opacity-90 text-white rounded-full transition-all text-[15px] font-bold border-none cursor-pointer shadow-sm"
-                  >
-                    <Plus size={18} strokeWidth={3} /> Crear Plan
-                  </button>
-                </div>
-                
-                {savedPlans.length === 0 ? (
-                  <div className="bg-white rounded-[20px] shadow-sm border border-slate-100 p-12 flex flex-col items-center justify-center gap-3 text-center">
-                    <div className="w-16 h-16 bg-slate-50 text-slate-800 rounded-full flex items-center justify-center mb-2">
-                      <FileText size={24} strokeWidth={2} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800">Sin planes activos</h3>
-                    <p className="text-slate-500 text-sm max-w-sm">Este paciente no tiene planes de tratamiento estructurados en este momento. Crea uno para empezar a presupuestar procedimientos.</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-6">
-                    {savedPlans.map(plan => (
-                      <div key={plan.id} className="bg-white rounded-[16px] shadow-sm border border-slate-200 flex flex-col p-6">
-                        
-                        <div className="flex justify-between items-center mb-8">
-                          <h3 className="text-2xl font-bold text-slate-800">Información del plan de tratamiento</h3>
-                          <div className="flex items-center gap-3">
-                            <button 
-                              onClick={() => {
-                                setEditingPlan(plan);
-                                setIsCreatingPlan(true);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 bg-[#0070AC] hover:opacity-90 text-white rounded-lg transition-all text-sm font-bold border-none cursor-pointer shadow-sm" 
-                              style={{ backgroundColor: 'var(--primary, #0070AC)' }}
-                            >
-                              <Pencil size={14} /> Editar
-                            </button>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-[#0070AC] hover:opacity-90 text-white rounded-lg transition-all text-sm font-bold border-none cursor-pointer shadow-sm" style={{ backgroundColor: 'var(--primary, #0070AC)' }}>
-                              <Download size={14} /> Descargar
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                          <div className="flex flex-col gap-2">
-                            <span className="text-[13px] text-slate-500 font-medium">Nombre del plan de tratamiento</span>
-                            <span className="text-base font-bold text-slate-800 tracking-tight">{plan.name}</span>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <span className="text-[13px] text-slate-500 font-medium">Monto del plan de tratamiento</span>
-                            <span className="text-base font-bold text-slate-800 tracking-tight">{plan.total.toFixed(2)}</span>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <span className="text-[13px] text-slate-500 font-medium">Progreso</span>
-                            <span className="text-base font-bold text-slate-500 tracking-tight">0 / {plan.items.length}</span>
-                          </div>
-                        </div>
-
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
 
         {activeTab === 'Historia médica' && (
           <div className="animate-in w-full max-w-6xl mx-auto px-6 py-4">

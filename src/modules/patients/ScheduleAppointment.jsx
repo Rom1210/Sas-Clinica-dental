@@ -39,7 +39,10 @@ const ScheduleAppointment = () => {
   }, [id, patients]);
 
   const activeDoctors = useMemo(() => {
-    return (doctors || []).filter(d => (d.status || '').toLowerCase() === 'activo');
+    return (doctors || []).filter(d => {
+      const status = (d.status || '').toLowerCase();
+      return status === 'activo' || status === 'active';
+    });
   }, [doctors]);
 
   const handleSave = () => {
@@ -124,26 +127,30 @@ const ScheduleAppointment = () => {
              </div>
 
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {activeDoctors.map(doc => (
-                   <div 
-                     key={doc.id}
-                     onClick={() => setFormData({...formData, doctorId: doc.id})}
-                     className={`p-5 rounded-3xl border-2 cursor-pointer transition-all flex items-center gap-4 relative group ${formData.doctorId === doc.id ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'border-slate-50 hover:border-slate-200 hover:bg-slate-50'}`}
-                   >
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-sm font-black shadow-lg shadow-black/5" style={{ backgroundColor: doc.color || '#3b82f6' }}>
-                         {doc.name.split(' ').map(n=>n[0]).join('')}
-                      </div>
-                      <div className="flex flex-col">
-                         <span className={`text-sm font-black tracking-tight ${formData.doctorId === doc.id ? 'text-primary' : 'text-slate-800'}`}>{doc.name}</span>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{doc.isSpecialist ? 'Especialista' : 'General'}</span>
-                      </div>
-                      {formData.doctorId === doc.id && (
-                        <div className="absolute top-4 right-4 text-primary">
-                          <CheckCircle size={16} />
-                        </div>
-                      )}
+                 {activeDoctors.length > 0 ? activeDoctors.map(doc => (
+                    <div 
+                      key={doc.id}
+                      onClick={() => setFormData({...formData, doctorId: doc.id})}
+                      className={`p-5 rounded-3xl border-2 cursor-pointer transition-all flex items-center gap-4 relative group ${formData.doctorId === doc.id ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'border-slate-50 hover:border-slate-200 hover:bg-slate-50'}`}
+                    >
+                       <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-sm font-black shadow-lg shadow-black/5" style={{ backgroundColor: doc.color || '#3b82f6' }}>
+                          {doc.name.split(' ').map(n=>n[0]).join('')}
+                       </div>
+                       <div className="flex flex-col">
+                          <span className={`text-sm font-black tracking-tight ${formData.doctorId === doc.id ? 'text-primary' : 'text-slate-800'}`}>{doc.name}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{doc.isSpecialist ? 'Especialista' : 'General'}</span>
+                       </div>
+                       {formData.doctorId === doc.id && (
+                         <div className="absolute top-4 right-4 text-primary">
+                           <CheckCircle size={16} />
+                         </div>
+                       )}
+                    </div>
+                 )) : (
+                   <div className="col-span-full py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                     <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay miembros del equipo médico registrados</p>
                    </div>
-                ))}
+                 )}
              </div>
           </div>
 
