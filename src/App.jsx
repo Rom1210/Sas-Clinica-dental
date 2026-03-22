@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import { Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { 
   Users, 
   Calendar, 
-  FileText, 
   CreditCard, 
   BarChart3, 
   Settings, 
-  Search,
-  Plus
+  Plus,
+  LogOut,
+  Loader2
 } from 'lucide-react';
+
+// Context
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { DataProvider, useData } from './context/DataContext';
+
+// Components
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import TeamManagement from './modules/settings/TeamManagement';
 
 // Modules
 import PatientRegistration from './modules/patients/PatientRegistration';
@@ -25,11 +34,31 @@ import SettingsManagement from './modules/settings/SettingsManagement';
 import ServiceForm from './modules/settings/ServiceForm';
 import DoctorForm from './modules/settings/DoctorForm';
 
-const App = () => {
+const AppContent = () => {
+  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const { loading: dataLoading, error: dataError } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [toast, setToast] = useState(null);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-primary" size={48} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
 
   const menuItems = [
     { id: 'bi', path: '/', label: 'Visión Global', icon: <BarChart3 size={20} /> },
@@ -84,13 +113,24 @@ const App = () => {
           })}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-slate-100">
+        <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
           <div className="flex items-center gap-3 p-2 hover:bg-slate-50 transition-all rounded-lg" style={{ cursor: 'pointer' }}>
-            <div className="avatar" style={{ width: 36, height: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>MS</div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827' }}>Maria Silva</span>
+            <div className="avatar" style={{ width: 36, height: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
+              {profile?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
+            </div>
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827' }} className="truncate">
+                {profile?.full_name || user.email}
+              </span>
               <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Admin</span>
             </div>
+            <button 
+              onClick={() => signOut()}
+              className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-all border-none bg-transparent cursor-pointer"
+              title="Cerrar Sesión"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </aside>
@@ -102,7 +142,9 @@ const App = () => {
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#111827' }}>
               {currentModule.label}
             </h2>
-            <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>Gestión integral del centro odontológico</p>
+            <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+              {dataLoading ? 'Actualizando datos...' : 'Gestión integral del centro odontológico'}
+            </p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -114,22 +156,29 @@ const App = () => {
 
         {/* Dynamic Content Rendering */}
         <div className="flex-1 w-full">
-          <Routes>
-            <Route path="/" element={<BIDashboard />} />
-            <Route path="/scheduler" element={<Scheduler />} />
-            <Route path="/patients" element={<PatientDashboard />} />
-            <Route path="/pacientes/:id" element={<PatientProfile />} />
-            <Route path="/pacientes/:id/agendar-cita" element={<ScheduleAppointment />} />
-            <Route path="/pacientes/:id/nueva-consulta" element={<NewConsultation />} />
-            <Route path="/finance" element={<FinanceModule />} />
-            <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
-            <Route path="/settings" element={<SettingsManagement />} />
-            <Route path="/settings/new-service" element={<ServiceForm />} />
-            <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
-            <Route path="/settings/new-doctor" element={<DoctorForm />} />
-            <Route path="/settings/edit-doctor/:id" element={<DoctorForm />} />
-            <Route path="*" element={<BIDashboard />} />
-          </Routes>
+          {dataError ? (
+            <div className="p-8 bg-rose-50 border border-rose-100 rounded-3xl text-rose-600 text-center">
+               <p className="font-bold">Error de conexión</p>
+               <p className="text-sm">{dataError}</p>
+            </div>
+          ) : (
+            <Routes>
+              <Route path="/" element={<BIDashboard />} />
+              <Route path="/scheduler" element={<Scheduler />} />
+              <Route path="/patients" element={<PatientDashboard />} />
+              <Route path="/pacientes/:id" element={<PatientProfile />} />
+              <Route path="/pacientes/:id/agendar-cita" element={<ScheduleAppointment />} />
+              <Route path="/pacientes/:id/nueva-consulta" element={<NewConsultation />} />
+              <Route path="/finance" element={<FinanceModule />} />
+              <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
+              <Route path="/settings" element={<SettingsManagement />} />
+              <Route path="/settings/new-service" element={<ServiceForm />} />
+              <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
+              <Route path="/settings/new-doctor" element={<DoctorForm />} />
+              <Route path="/settings/edit-doctor/:id" element={<DoctorForm />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          )}
         </div>
       </main>
 
@@ -168,5 +217,13 @@ const App = () => {
     </div>
   );
 };
+
+const App = () => (
+  <AuthProvider>
+    <DataProvider>
+      <AppContent />
+    </DataProvider>
+  </AuthProvider>
+);
 
 export default App;

@@ -1,31 +1,29 @@
 import React, { useState } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, MoreVertical, Calendar } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, MoreVertical, Calendar, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import PatientProfile from './PatientProfile';
+import { useData } from '../../context/DataContext';
 
 const PatientDashboard = () => {
+  const { patients, loading } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const mockPatients = [
-    { id: 1, name: 'Fabian Romero', dni: '31325708', email: 'fabanplay@gmail.com', lastVisit: '10 Mar 2026', status: 'Activo', debt: 0, gender: 'M' },
-    { id: 2, name: 'Mariana Sosa', dni: '28123456', email: 'msosa@gmail.com', lastVisit: '05 Mar 2026', status: 'En Tratamiento', debt: 150, gender: 'F' },
-    { id: 3, name: 'Juan Pérez', dni: '15456789', email: 'jperez@gmail.com', lastVisit: '28 Feb 2026', status: 'Deuda', debt: 45, gender: 'M' },
-    { id: 4, name: 'Lucía Blanco', dni: '30987654', email: 'lblanco@gmail.com', lastVisit: '11 Mar 2026', status: 'Activo', debt: 0, gender: 'F' },
-  ];
-
-  const filteredPatients = mockPatients.filter(patient => {
+  const filteredPatients = patients.filter(patient => {
     const term = searchTerm.toLowerCase();
-    return patient.name.toLowerCase().includes(term) ||
-           patient.dni.includes(term) ||
-           patient.email.toLowerCase().includes(term);
+    const fullName = patient.name || '';
+    const dni = patient.dni || '';
+    const email = patient.email || '';
+    return fullName.toLowerCase().includes(term) ||
+           dni.includes(term) ||
+           email.toLowerCase().includes(term);
   });
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Activo': return 'bg-emerald-50 text-emerald-600';
-      case 'En Tratamiento': return 'bg-blue-50 text-blue-600';
-      case 'Deuda': return 'bg-rose-50 text-rose-600';
+      case 'active': return 'bg-emerald-50 text-emerald-600';
+      case 'in_treatment': return 'bg-blue-50 text-blue-600';
+      case 'follow_up': return 'bg-amber-50 text-amber-600';
+      case 'archived': return 'bg-slate-50 text-slate-600';
       default: return 'bg-slate-50 text-slate-600';
     }
   };
@@ -54,6 +52,20 @@ const PatientDashboard = () => {
         </button>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center p-12">
+           <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && filteredPatients.length === 0 && (
+        <div className="text-center p-12 bg-white rounded-3xl border border-slate-100 shadow-sm">
+           <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No se encontraron pacientes</p>
+        </div>
+      )}
+
       {/* Patient Cards List */}
       <div className="flex flex-col gap-3">
         {filteredPatients.map((patient) => (
@@ -67,22 +79,22 @@ const PatientDashboard = () => {
                {/* Col 1: Paciente */}
                <div className="col-span-3 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-xs font-black text-slate-600 uppercase">
-                    {patient.name.split(' ').map(n => n[0]).join('')}
+                    {(patient.name || "P").split(' ').map(n => n[0]).join('').substring(0, 2)}
                   </div>
                   <div className="flex flex-col">
-                     <span className="text-sm font-bold text-slate-800">{patient.name}</span>
-                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ID: {patient.id}092</span>
+                     <span className="text-sm font-bold text-slate-800">{patient.name || patient.email}</span>
+                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ID: {patient.id.substring(0, 8)}...</span>
                   </div>
                </div>
                
                {/* Col 2: Documento */}
                <div className="col-span-2 text-sm font-bold text-slate-600">
-                  {patient.dni}
+                  {patient.dni || 'S/D'}
                </div>
 
                {/* Col 3: Email */}
                <div className="col-span-3 text-sm font-semibold text-slate-500">
-                  {patient.email}
+                  {patient.email || 'No cuenta con email'}
                </div>
 
                {/* Col 4: Estatus */}

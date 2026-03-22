@@ -10,21 +10,42 @@ const PatientFinanceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
-  const { patients, addPayment } = useData();
+  const { patients, addPayment, payments, consultations } = useData();
   const [notification, setNotification] = useState(null);
   
   const [formData, setFormData] = useState({
     amount: '', currency: 'USD', method: 'Zelle', ref: ''
   });
 
-  const patient = useMemo(() => patients.find(p => p.id.toString() === id), [patients, id]);
+  const patient = useMemo(() => patients.find(p => p.id === id || p.id === parseInt(id)), [patients, id]);
 
   const financials = useMemo(() => {
     if (!patient) return null;
-    const totalPaid = patient.history.reduce((sum, pay) => sum + (pay.currency === 'USD' ? pay.amount : pay.amount / exchangeRate), 0);
-    const balance = patient.totalDue - totalPaid;
-    return { ...patient, totalPaid, balance };
-  }, [patient, exchangeRate]);
+    
+    const patientConsults = consultations.filter(c => c.patient_id === patient.id);
+    const patientPays = payments.filter(pay => pay.patient_id === patient.id);
+    
+    const totalDue = patientConsults.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+    const totalPaid = patientPays.reduce((sum, pay) => 
+      sum + (pay.currency === 'USD' ? parseFloat(pay.amount) : parseFloat(pay.amount) / exchangeRate), 0);
+    
+    const balance = totalDue - totalPaid;
+    
+    return { 
+      ...patient, 
+      name: patient.full_name,
+      totalDue,
+      totalPaid, 
+      balance,
+      history: patientPays.map(p => ({
+        ...p,
+        date: new Date(p.payment_date || p.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+        method: p.method,
+        amount: parseFloat(p.amount),
+        ref: p.reference
+      })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    };
+  }, [patient, consultations, payments, exchangeRate]);
 
   const notify = (msg) => {
     setNotification(msg);
@@ -36,12 +57,11 @@ const PatientFinanceDetail = () => {
     if (!patient) return;
 
     const payment = {
-      id: Date.now(),
       amount: parseFloat(formData.amount),
       currency: formData.currency,
       method: formData.method,
-      ref: formData.ref || 'Manual',
-      date: new Date().toISOString().split('T')[0]
+      reference: formData.ref || 'Manual',
+      payment_date: new Date().toISOString()
     };
     
     addPayment(patient.id, payment);

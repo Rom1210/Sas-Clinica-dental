@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, Mail, Calendar, Zap, ChevronDown, ChevronUp, Fingerprint, Info, Heart, Activity, ClipboardList, ShieldCheck, Check, AlertCircle } from 'lucide-react';
+import { Loader2, X, User, Phone, Mail, Calendar, Zap, ChevronDown, ChevronUp, Fingerprint, Info, Heart, Activity, ClipboardList, ShieldCheck, Check, AlertCircle } from 'lucide-react';
+import { useData } from '../../context/DataContext';
 
 const PremiumField = ({ label, icon, children, helper }) => (
   <div className="flex flex-col gap-1 group">
@@ -21,9 +22,10 @@ const PremiumField = ({ label, icon, children, helper }) => (
 );
 
 const PatientRegistration = ({ onClose, onSuccess }) => {
+  const { addPatient } = useData();
   const [activeTab, setActiveTab] = useState('core');
   const [age, setAge] = useState(null);
-  const [showMedicalHistory, setShowMedicalHistory] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -36,7 +38,6 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
     flags: [],
     fuma: false,
     bruxismo: false,
-    hasMedicalPrecedents: false
   });
 
   const flagsOptions = [
@@ -77,8 +78,33 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
     }));
   };
 
-  const handleSave = () => {
-    onSuccess('¡Paciente registrado con éxito! Enviando link de bienvenida por WhatsApp...');
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const patientData = {
+        full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        dni: formData.dni,
+        email: formData.email,
+        phone: formData.whatsapp,
+        birth_date: formData.dob,
+        gender: formData.gender,
+        status: 'active',
+        medical_history: {
+          reason: formData.reason,
+          flags: formData.flags,
+          fuma: formData.fuma,
+          bruxismo: formData.bruxismo
+        }
+      };
+
+      await addPatient(patientData);
+      onSuccess(`¡${patientData.full_name} registrado con éxito!`);
+    } catch (error) {
+      console.error('Error saving patient:', error);
+      alert('Error al guardar el paciente: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderTabContent = () => {
@@ -336,10 +362,11 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
           <div className="flex gap-3">
             <button className="flex-1 py-4 bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all border-none cursor-pointer" onClick={() => setActiveTab('health')}>Atrás</button>
             <button 
-              className="flex-1 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-primary/20 border-none cursor-pointer"
+              className="flex-1 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-primary/20 border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               onClick={handleSave}
+              disabled={isSaving}
             >
-              Guardar Paciente
+              {isSaving ? <Loader2 className="animate-spin" size={14} /> : 'Guardar Paciente'}
             </button>
           </div>
         )}

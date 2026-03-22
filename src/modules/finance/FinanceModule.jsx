@@ -12,7 +12,7 @@ import { useData } from '../../context/DataContext';
 const FinanceModule = () => {
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
-  const { patients, addPayment, expenses, addExpense } = useData();
+  const { patients, addPayment, expenses, addExpense, payments, consultations } = useData();
   const [activeTab, setActiveTab] = useState('overview');
   const [showModal, setShowModal] = useState(null); // 'expense' | null
   const [notification, setNotification] = useState(null);
@@ -28,18 +28,36 @@ const FinanceModule = () => {
   };
 
   // Calculations
-  const allPayments = useMemo(() => patients.flatMap(p => p.history.map(h => ({ ...h, patientName: p.name }))), [patients]);
-  const totalIngresos = useMemo(() => allPayments.reduce((acc, p) => acc + (p.currency === 'USD' ? p.amount : p.amount / exchangeRate), 0), [allPayments, exchangeRate]);
+  const allPayments = useMemo(() => payments.map(p => ({
+    ...p,
+    patientName: p.patient?.full_name || 'Paciente'
+  })), [payments]);
+
+  const totalIngresos = useMemo(() => allPayments.reduce((acc, p) => 
+    acc + (p.currency === 'USD' ? p.amount : p.amount / exchangeRate), 0), [allPayments, exchangeRate]);
+  
   const totalEgresos = useMemo(() => expenses.reduce((acc, e) => acc + e.amount, 0), [expenses]);
   
   // Patient Financial Analysis
   const patientFinancials = useMemo(() => {
     return patients.map(p => {
-      const totalPaid = p.history.reduce((sum, pay) => sum + (pay.currency === 'USD' ? pay.amount : pay.amount / exchangeRate), 0);
-      const balance = p.totalDue - totalPaid;
-      return { ...p, totalPaid, balance };
+      const patientConsults = consultations.filter(c => c.patient_id === p.id);
+      const patientPays = payments.filter(pay => pay.patient_id === p.id);
+      
+      const totalDue = patientConsults.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      const totalPaid = patientPays.reduce((sum, pay) => 
+        sum + (pay.currency === 'USD' ? parseFloat(pay.amount) : parseFloat(pay.amount) / exchangeRate), 0);
+      
+      const balance = totalDue - totalPaid;
+      return { 
+        ...p, 
+        name: p.full_name,
+        totalPaid, 
+        balance,
+        paymentCount: patientPays.length
+      };
     });
-  }, [patients, exchangeRate]);
+  }, [patients, consultations, payments, exchangeRate]);
 
   const totalCuentasPorCobrar = useMemo(() => patientFinancials.reduce((acc, p) => acc + Math.max(0, p.balance), 0), [patientFinancials]);
 
@@ -138,7 +156,7 @@ const FinanceModule = () => {
                                    </div>
                                    <div className="flex flex-col">
                                       <span className="text-xs font-black text-slate-700">{pf.name}</span>
-                                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{pf.history.length} pagos</span>
+                                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{pf.paymentCount} pagos</span>
                                    </div>
                                 </div>
                              </td>

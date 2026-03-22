@@ -89,21 +89,32 @@ const SettingsManagement = () => {
                 </div>
              </div>
 
-             {/* System Integrity */}
-             <div className="professional-card p-8 flex flex-col gap-6 bg-slate-50 border-none">
+             {/* System Integrity & Team */}
+             <div className="professional-card p-8 flex flex-col gap-6 bg-slate-50 border-none relative overflow-hidden group">
                 <div className="flex items-center gap-2">
                    <ShieldCheck className="text-emerald-500" size={20} />
-                   <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Integridad del Sistema</span>
+                   <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Seguridad y Equipo</span>
                 </div>
                 <div className="flex flex-col gap-4">
                    <div className="flex justify-between items-center py-3 border-b border-slate-200">
                       <span className="text-xs font-bold text-slate-500">Versión SmartDental</span>
                       <span className="text-xs font-black text-slate-900 uppercase">2.1 Elite</span>
                    </div>
-                   <div className="flex justify-between items-center py-3">
-                      <span className="text-xs font-bold text-slate-500">Sincronización de Datos</span>
-                      <span className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-full">Activa</span>
-                   </div>
+                   <button 
+                      onClick={() => navigate('/settings/team')}
+                      className="w-full flex justify-between items-center py-4 px-6 bg-white border border-slate-100 rounded-2xl hover:border-primary hover:shadow-lg transition-all text-left group border-none cursor-pointer"
+                   >
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 bg-primary/10 rounded-xl text-primary font-black uppercase tracking-widest">
+                            <UserPlus size={16} />
+                         </div>
+                         <div className="flex flex-col">
+                            <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Gestionar Equipo</span>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Invitaciones y Roles</span>
+                         </div>
+                      </div>
+                      <ChevronRight size={16} className="text-slate-200 group-hover:text-primary transition-colors" />
+                   </button>
                 </div>
              </div>
 

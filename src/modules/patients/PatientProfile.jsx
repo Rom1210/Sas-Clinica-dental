@@ -8,41 +8,43 @@ import NewTreatmentPlan from '../treatments/NewTreatmentPlan';
 const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { patients } = useData();
+  const { patients, consultations: allConsultations } = useData();
   
   // Support both prop-based and route-based patient loading
   const [patient, setPatient] = useState(propPatient);
+  const [patientConsultations, setPatientConsultations] = useState([]);
   
   useEffect(() => {
     if (propPatient) {
       setPatient(propPatient);
-    } else if (id) {
-      let found = null;
-      if (patients) {
-        found = patients.find(p => p.id === id || p.id === parseInt(id));
-      }
-      if (!found) {
-        const mockPatients = [
-          { id: 1, name: 'Fabian Romero', dni: '31325708', email: 'fabanplay@gmail.com', lastVisit: '10 Mar 2026', status: 'Activo', debt: 0, gender: 'M' },
-          { id: 2, name: 'Mariana Sosa', dni: '28123456', email: 'msosa@gmail.com', lastVisit: '05 Mar 2026', status: 'En Tratamiento', debt: 150, gender: 'F' },
-          { id: 3, name: 'Juan Pérez', dni: '15456789', email: 'jperez@gmail.com', lastVisit: '28 Feb 2026', status: 'Deuda', debt: 45, gender: 'M' },
-          { id: 4, name: 'Lucía Blanco', dni: '30987654', email: 'lblanco@gmail.com', lastVisit: '11 Mar 2026', status: 'Activo', debt: 0, gender: 'F' },
-        ];
-        found = mockPatients.find(p => p.id === id || p.id === parseInt(id));
-      }
-      if (found) {
-        setPatient(found);
-      } else {
-        setPatient({ id: parseInt(id), name: 'Paciente Desconocido', email: 'sn@gmail.com', dni: '00000000' });
-      }
+    } else if (id && patients.length > 0) {
+      const found = patients.find(p => p.id === id || p.id === parseInt(id));
+      if (found) setPatient(found);
     }
   }, [propPatient, id, patients]);
 
+  useEffect(() => {
+    if (patient) {
+      const filtered = allConsultations
+        .filter(c => c.patient_id === patient.id)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .map(c => ({
+          ...c,
+          date: new Date(c.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+          treatment: c.treatment_summary,
+          cost: c.amount,
+          paymentStatus: c.payment_status === 'paid' ? 'Pagado' : (c.payment_status === 'partial' ? 'Abono' : 'Pendiente'),
+          doctorName: c.doctor?.full_name || 'Especialista'
+        }));
+      setPatientConsultations(filtered);
+    }
+  }, [patient, allConsultations]);
+
   const onBack = propOnBack || (() => navigate('/patients'));
+  const [activeTab, setActiveTab] = useState('General');
   const [showNewConsultModal, setShowNewConsultModal] = useState(false);
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
-  const [consultations, setConsultations] = useState([]);
   const [savedPlans, setSavedPlans] = useState([]);
   const [toastMessage, setToastMessage] = useState(null);
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -68,33 +70,23 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   React.useEffect(() => {
     if (patient) {
       setPersonalInfo({
-        nombres: patient.name?.split(' ')[0] || '',
-        apellidos: patient.name?.split(' ').slice(1).join(' ') || '',
-        fechaNacimiento: '12/05/1995', // Mock data
-        genero: 'Otro',
-        lugarNacimiento: 'Valencia',
-        cedula: '31325708',
+        nombres: patient.first_name || patient.name?.split(' ')[0] || '',
+        apellidos: patient.last_name || patient.name?.split(' ').slice(1).join(' ') || '',
+        fechaNacimiento: patient.birth_date ? new Date(patient.birth_date).toLocaleDateString('es-ES') : '',
+        genero: patient.gender || 'Otro',
+        lugarNacimiento: '', // Not in schema currently, keeping as placeholder or adding to JSON
+        cedula: patient.dni || '',
         email: patient.email || '',
-        telefono: '04244570903',
-        telefonoEmergencia: '04244570903',
-        alergias: 'Ninguna',
-        ocupacion: 'Estudiante',
-        direccion: 'Carabobo Valencia\nNaguanagua'
+        telefono: patient.phone || '',
+        telefonoEmergencia: patient.phone || '',
+        alergias: patient.medical_flags?.join(', ') || 'Ninguna',
+        ocupacion: '',
+        direccion: ''
       });
     }
   }, [patient]);
 
-  const [activeTab, setActiveTab] = useState('General');
   const tabs = ['General', 'Planes de tratamiento', 'Historia médica', 'Historia de pago'];
-
-  const handleSaveConsultation = (newConsultation) => {
-    setConsultations([newConsultation, ...consultations]);
-    setShowNewConsultModal(false);
-    
-    // Simulate a local toast context since the global one is in App.jsx
-    setToastMessage("¡Consulta registrada correctamente!");
-    setTimeout(() => setToastMessage(null), 3000);
-  };
 
   if (!patient) return <div className="p-10 text-center font-bold text-slate-500 uppercase tracking-widest">Cargando paciente...</div>;
 
@@ -210,7 +202,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
 
                 {/* Card-Based Consultations List with Internal Scroll */}
                 <div className="p-4 bg-slate-50/30 overflow-y-auto flex flex-col gap-3" style={{ maxHeight: '400px' }}>
-                  {consultations.length === 0 ? (
+                  {patientConsultations.length === 0 ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-2 bg-white rounded-xl border border-slate-100 border-dashed">
                       <h3 className="text-base font-bold text-slate-800">0 resultados.</h3>
                       <p className="text-sm text-slate-500">No hay registros creados hasta ahora.</p>
@@ -222,7 +214,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                       </button>
                     </div>
                   ) : (
-                    consultations.map((c) => (
+                    patientConsultations.map((c) => (
                       <div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                         <div className="flex gap-4 items-start md:items-center w-full md:w-auto">
                           <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
@@ -232,7 +224,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{c.date}</span>
                              <span className="text-sm font-bold text-slate-800">{c.treatment}</span>
                              <span className="text-sm text-slate-500 line-clamp-1">{c.reason || 'Sin motivo adicional'}</span>
-                             {c.tooth && <span className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1">Pieza: {c.tooth}</span>}
+                             {c.doctorName && <span className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1">Doctor: {c.doctorName}</span>}
                           </div>
                         </div>
                         

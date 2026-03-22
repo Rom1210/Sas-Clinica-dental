@@ -19,9 +19,12 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
   // Services State
   const [selectedServices, setSelectedServices] = useState([]); // { serviceId, qty, price, name }
 
+  // Loading state
+  const [isSaving, setIsSaving] = useState(false);
+
   // Grouping Doctors with useMemo
   const activeDoctors = useMemo(() => {
-    return (doctors || []).filter(d => (d.status || '').toLowerCase() === 'activo');
+    return (doctors || []).filter(d => (d.status || '').toLowerCase() === 'activo' || (d.status || '').toLowerCase() === 'active');
   }, [doctors]);
 
   const generalists = useMemo(() => {
@@ -41,7 +44,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
       const fullPatient = (patients || []).find(p => p.id === prefilledPatient.id) || prefilledPatient;
       setSelectedPatient(fullPatient);
       setPatientMode('search');
-      setPatientSearch(fullPatient.name);
+      setPatientSearch(fullPatient.full_name || fullPatient.name || '');
     } else {
       setSelectedPatient(null);
       setPatientMode('search');
@@ -53,6 +56,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
     setNewPatientEmail('');
     setSelectedDoctorId('');
     setSelectedServices([]);
+    setIsSaving(false);
   }, [isOpen, prefilledPatient, patients]);
 
   const durationMin = selection ? selection.blocks.length * 15 : 0;
@@ -60,7 +64,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
   const filteredPatients = useMemo(() => {
     if (!patientSearch || selectedPatient) return [];
     return patients.filter(p => 
-      p.name.toLowerCase().includes(patientSearch.toLowerCase()) || 
+      (p.full_name || '').toLowerCase().includes(patientSearch.toLowerCase()) || 
       (p.email && p.email.toLowerCase().includes(patientSearch.toLowerCase()))
     );
   }, [patientSearch, patients, selectedPatient]);
@@ -104,28 +108,44 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
 
   const totalCost = selectedServices.reduce((sum, s) => sum + s.subtotal, 0);
 
-  const handleConfirm = () => {
-    const pName = selectedPatient ? selectedPatient.name : newPatientName;
-    if (!pName) return alert('Por favor selecciona o ingresa un paciente.');
+  const handleConfirm = async () => {
+    if (!selectedPatient && !newPatientName) return alert('Por favor selecciona o ingresa un paciente.');
     if (!selectedDoctorId) return alert('Por favor selecciona un profesional.');
     if (selectedServices.length === 0) return alert('Por favor agrega al menos un servicio.');
 
-    const appointmentData = {
-      date: selection.dateStr,
-      blocks: selection.blocks,
-      startTime: selection.startTime,
-      endTime: selection.endTime,
-      patientName: pName,
-      patientPhone: selectedPatient ? selectedPatient.phone : newPatientPhone,
-      patientEmail: selectedPatient ? selectedPatient.email : newPatientEmail,
-      doctorId: parseInt(selectedDoctorId),
-      services: selectedServices,
-      totalCost,
-      status: 'Programada'
-    };
+    setIsSaving(true);
+    try {
+      let patientId = selectedPatient?.id;
 
-    addAppointment(appointmentData);
-    onSuccess();
+      // Handle new patient creation
+      if (patientMode === 'new') {
+        const newPatient = await addPatient({
+          full_name: newPatientName,
+          phone: newPatientPhone,
+          email: newPatientEmail,
+          status: 'active'
+        });
+        patientId = newPatient.id;
+      }
+
+      const appointmentData = {
+        patient_id: patientId,
+        doctor_id: selectedDoctorId,
+        starts_at: `${selection.date}T${selection.startTime}:00`,
+        ends_at: `${selection.date}T${selection.endTime}:00`,
+        status: 'scheduled',
+        notes: `Servicios: ${selectedServices.map(s => s.name).join(', ')}`,
+        // In a real app we'd also link services via invoice_items
+      };
+
+      await addAppointment(appointmentData);
+      onSuccess();
+    } catch (error) {
+      console.error('Error recording appointment:', error);
+      alert('Error al agendar: ' + (error.message || error));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen || !selection) return null;
@@ -223,7 +243,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
                                      onClick={() => { setSelectedPatient(p); setPatientSearch(p.name); }}
                                    >
                                       <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-slate-800 group-hover:text-primary transition-colors">{p.name}</span>
+                                        <span className="text-sm font-bold text-slate-800 group-hover:text-primary transition-colors">{p.full_name || p.name}</span>
                                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{p.email || 'Sin correo'}</span>
                                       </div>
                                       <span className="text-[10px] bg-slate-100 text-slate-500 font-black px-2 py-1 rounded-md uppercase tracking-tighter">{p.phone || 'S/T'}</span>
@@ -240,7 +260,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
                                   </div>
                                   <div className="flex flex-col">
                                     <span className="text-xs font-black text-emerald-800 uppercase tracking-widest">Paciente Vinculado</span>
-                                    <span className="text-sm font-bold text-emerald-600">{selectedPatient.name}</span>
+                                    <span className="text-sm font-bold text-emerald-600">{selectedPatient.full_name || selectedPatient.name}</span>
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-end">
@@ -310,7 +330,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
                                     {doc.name.split(' ').map(n=>n[0]).join('')}
                                  </div>
                                  <div className="flex flex-col">
-                                    <span className={`text-sm font-black tracking-tight ${selectedDoctorId === doc.id ? 'text-primary' : 'text-slate-800'}`}>{doc.name}</span>
+                                    <span className={`text-sm font-black tracking-tight ${selectedDoctorId === doc.id ? 'text-primary' : 'text-slate-800'}`}>{doc.full_name || doc.name}</span>
                                     <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">General</span>
                                  </div>
                                  {selectedDoctorId === doc.id && (

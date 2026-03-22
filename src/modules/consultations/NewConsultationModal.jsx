@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Calendar, User, FileText, CheckCircle2 } from 'lucide-react';
+import { X, Calendar, User, FileText, CheckCircle2, Stethoscope, Clock } from 'lucide-react';
+import { useData } from '../../context/DataContext';
 
 const NewConsultationModal = ({ patient, onClose, onSave }) => {
   const navigate = useNavigate();
+  const { addConsultation, doctors } = useData();
+  const [isSaving, setIsSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     reason: '',
     treatment: 'Limpieza Dental',
     tooth: '',
     cost: '',
     paymentStatus: 'Pendiente',
-    notes: ''
+    notes: '',
+    doctor_id: doctors[0]?.id || ''
   });
 
   const [errors, setErrors] = useState({
     reason: false,
-    cost: false
+    cost: false,
+    doctor_id: false
   });
 
   const treatments = [
@@ -25,52 +31,54 @@ const NewConsultationModal = ({ patient, onClose, onSave }) => {
 
   const paymentStatuses = ['Pagado', 'Abono', 'Pendiente'];
 
-  const handleSave = () => {
-    // Validation
+  const statusMap = {
+    'Pagado': 'paid',
+    'Abono': 'partial',
+    'Pendiente': 'unbilled'
+  };
+
+  const handleSave = async () => {
     const newErrors = {
       reason: formData.reason.trim() === '',
-      cost: formData.cost.trim() === '' || isNaN(formData.cost)
+      cost: formData.cost.toString().trim() === '' || isNaN(formData.cost),
+      doctor_id: !formData.doctor_id
     };
     
     setErrors(newErrors);
 
-    if (!newErrors.reason && !newErrors.cost) {
-      // Create new consultation object
-      const newConsultation = {
-        id: Date.now(),
-        date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-        reason: formData.reason,
-        treatment: formData.treatment,
-        cost: parseFloat(formData.cost),
-        paymentStatus: formData.paymentStatus,
-        tooth: formData.tooth,
-      };
-      
-      onSave(newConsultation);
+    if (!Object.values(newErrors).some(e => e)) {
+      setIsSaving(true);
+      try {
+        const payload = {
+          patient_id: patient.id,
+          doctor_id: formData.doctor_id,
+          reason: formData.reason,
+          treatment_summary: formData.treatment,
+          amount: parseFloat(formData.cost),
+          payment_status: statusMap[formData.paymentStatus] || 'unbilled',
+          notes: formData.notes,
+          vitals: { tooth: formData.tooth }
+        };
+        
+        const result = await addConsultation(payload);
+        onSave(result);
+      } catch (error) {
+        console.error("Error saving consultation:", error);
+        alert("Error al guardar la consulta");
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
   const handleScheduleFollowUp = () => {
-    // First save the consultation
-    const newConsultation = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-      reason: formData.reason,
-      treatment: formData.treatment,
-      cost: parseFloat(formData.cost || 0),
-      paymentStatus: formData.paymentStatus,
-      tooth: formData.tooth,
-    };
-    onSave(newConsultation);
-    
-    // Then navigate to scheduler
     navigate('/scheduler', { 
       state: { 
         prefilledPatient: {
           id: patient.id,
-          name: patient.name,
+          name: patient.full_name || patient.name,
           email: patient.email,
-          phone: patient.phone || '04244570903'
+          phone: patient.phone || ''
         } 
       } 
     });
@@ -92,7 +100,7 @@ const NewConsultationModal = ({ patient, onClose, onSave }) => {
           <div>
             <h2 className="text-xl font-bold text-slate-800">Registro de Nueva Consulta</h2>
             <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 font-medium">
-              <span className="flex items-center gap-1.5"><User size={14} /> {patient?.name || 'Paciente'}</span>
+              <span className="flex items-center gap-1.5"><User size={14} /> {patient?.full_name || patient?.name || 'Paciente'}</span>
               <span className="flex items-center gap-1.5"><Calendar size={14} /> {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
             </div>
           </div>
@@ -107,7 +115,24 @@ const NewConsultationModal = ({ patient, onClose, onSave }) => {
         {/* Scrollable Body */}
         <div className="p-6 overflow-y-auto flex flex-col gap-6" style={{ maxHeight: 'calc(90vh - 160px)' }}>
           
-          {/* Section A: Motivo */}
+          {/* Section: Doctor Selection */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Stethoscope size={16} className="text-slate-400" />
+              Especialista
+            </h3>
+            <select 
+              className={`w-full bg-slate-50 border ${errors.doctor_id ? 'border-red-300' : 'border-slate-200'} rounded-xl p-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-medium cursor-pointer`}
+              value={formData.doctor_id}
+              onChange={e => setFormData({...formData, doctor_id: e.target.value})}
+            >
+              <option value="">Seleccionar Especialista...</option>
+              {doctors.map(d => (
+                <option key={d.id} value={d.id}>{d.full_name || d.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex flex-col gap-3">
             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-[10px]">A</span>
@@ -222,15 +247,18 @@ const NewConsultationModal = ({ patient, onClose, onSave }) => {
           <div className="flex gap-3">
             <button 
               onClick={onClose}
+              disabled={isSaving}
               className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm cursor-pointer text-sm"
             >
               Cancelar
             </button>
             <button 
               onClick={handleSave}
-              className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 border-none shadow-sm cursor-pointer text-sm"
+              disabled={isSaving}
+              className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 border-none shadow-sm cursor-pointer text-sm disabled:opacity-50"
             >
-              <CheckCircle2 size={16} /> Guardar Consulta
+              {isSaving ? <Clock size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
+              {isSaving ? 'Guardando...' : 'Guardar Consulta'}
             </button>
           </div>
         </div>
