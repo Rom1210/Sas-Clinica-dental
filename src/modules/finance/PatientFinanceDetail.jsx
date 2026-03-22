@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  History, User, X, CheckCircle, CheckCircle2, ArrowLeft 
+  ArrowLeft, User, DollarSign, Calendar, Clock, 
+  CheckCircle, AlertCircle, History, Plus, X, FileText, Loader2
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useData } from '../../context/DataContext';
@@ -10,8 +11,9 @@ const PatientFinanceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
-  const { patients, addPayment, payments, consultations } = useData();
+  const { patients, addPayment, payments, consultations, addInvoice, refresh } = useData();
   const [notification, setNotification] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     amount: '', currency: 'USD', method: 'Zelle', ref: ''
@@ -33,7 +35,7 @@ const PatientFinanceDetail = () => {
     
     return { 
       ...patient, 
-      name: patient.full_name,
+      name: patient.name,
       totalDue,
       totalPaid, 
       balance,
@@ -46,6 +48,28 @@ const PatientFinanceDetail = () => {
       })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     };
   }, [patient, consultations, payments, exchangeRate]);
+
+  const handleGenerateInvoice = async () => {
+    if (!financials.balance || financials.balance <= 0) {
+      notify('No hay saldo pendiente para facturar.');
+      return;
+    }
+
+    setInvoiceLoading(true);
+    try {
+      await addInvoice({
+        patient_id: id,
+        total_amount: financials.balance,
+        status: 'pending'
+      });
+      notify('Factura generada exitosamente.');
+      refresh(); // Refresh data to show updated invoices
+    } catch (err) {
+      notify('Error al generar factura: ' + err.message);
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
 
   const notify = (msg) => {
     setNotification(msg);
@@ -114,6 +138,14 @@ const PatientFinanceDetail = () => {
             </div>
           </div>
         </div>
+        <button 
+             onClick={handleGenerateInvoice}
+             disabled={invoiceLoading || financials.balance <= 0}
+             className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+          >
+             {invoiceLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+             Generar Factura
+          </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

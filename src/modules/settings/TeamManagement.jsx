@@ -10,16 +10,13 @@ import { supabase } from '../../lib/supabase';
 
 const TeamManagement = () => {
   const { activeOrgId } = useAuth();
+  const { team, removeTeamMember, adminInvite } = useData();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('doctor');
   const [notification, setNotification] = useState(null);
-  
-  // Mock data for display while we fetch real team (should be fetched from organization_users)
-  const [team, setTeam] = useState([
-    { id: 1, name: 'Admin Principal', email: 'khouryromero@gmail.com', role: 'owner', status: 'active' }
-  ]);
+  const [isDeleting, setIsDeleting] = useState(null);
 
   const notify = (msg) => {
     setNotification(msg);
@@ -31,13 +28,11 @@ const TeamManagement = () => {
     setInviteLoading(true);
     
     try {
-      // In a real production setup, we call a Supabase Edge Function:
-      // const { data, error } = await supabase.functions.invoke('invite-member', {
-      //   body: { email: inviteEmail, role: inviteRole, organization_id: activeOrgId }
-      // });
+      const { data, error } = await supabase.functions.invoke('invite-member', {
+        body: { email: inviteEmail, role: inviteRole, organization_id: activeOrgId }
+      });
       
-      // For now, we simulate the call success while providing the Edge Function code
-      // to the user so they can fully enable it.
+      if (error) throw error;
       
       notify(`Invitación enviada a ${inviteEmail}`);
       setShowInviteModal(false);
@@ -46,6 +41,18 @@ const TeamManagement = () => {
       notify('Error al enviar invitación: ' + err.message);
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    setIsDeleting(id);
+    try {
+      await removeTeamMember(id);
+      notify('Miembro eliminado');
+    } catch (err) {
+      notify('Error al eliminar: ' + err.message);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -125,7 +132,13 @@ const TeamManagement = () => {
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">
-                    <button className="p-2 text-slate-300 hover:text-slate-600 bg-transparent border-none cursor-pointer"><MoreVertical size={16} /></button>
+                    <button 
+                      onClick={() => handleDelete(member.id)}
+                      disabled={isDeleting === member.id || member.role === 'owner'}
+                      className="p-2 text-slate-300 hover:text-rose-500 bg-transparent border-none cursor-pointer disabled:opacity-30 transition-colors"
+                    >
+                      {isDeleting === member.id ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                    </button>
                   </td>
                 </tr>
               ))}

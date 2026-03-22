@@ -5,7 +5,7 @@ import { useData } from '../../context/DataContext';
 import { 
   Settings, Users, ClipboardList, RefreshCw, Plus, Save, 
   Trash2, ShieldCheck, Briefcase, X, Edit2, AlertTriangle, CheckCircle, 
-  Stethoscope, UserPlus
+  Stethoscope, UserPlus, ChevronRight
 } from 'lucide-react';
 
 const SettingsManagement = () => {
@@ -137,7 +137,7 @@ const SettingsManagement = () => {
                        <div key={doc.id} className="flex flex-wrap sm:flex-nowrap justify-between items-center p-5 bg-white rounded-[2rem] border border-slate-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all group gap-4 mb-3">
                           <div className="flex items-center gap-5">
                              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-black/5 relative overflow-hidden" style={{ backgroundColor: doc.color || '#3b82f6' }}>
-                                <span className="text-white text-xs font-black relative z-10">{doc.name.split(' ').map(n=>n[0]).join('')}</span>
+                                <span className="text-white text-xs font-black relative z-10">{doc.name?.split(' ').map(n=>n[0]).join('') || 'DR'}</span>
                                 <div className="absolute inset-0 bg-white/10"></div>
                              </div>
                              <div className="flex flex-col">

@@ -26,7 +26,7 @@ serve(async (req) => {
     // 2. Create profile and assignment
     const { error: profileError } = await supabaseClient
       .from('profiles')
-      .upsert({ id: authData.user.id, email: email, role: role })
+      .upsert({ id: authData.user.id, email: email })
 
     const { error: orgError } = await supabaseClient
       .from('organization_users')

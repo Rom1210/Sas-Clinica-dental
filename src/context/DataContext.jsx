@@ -13,6 +13,8 @@ export const DataProvider = ({ children }) => {
   const [appointments, setAppointments] = useState([]);
   const [consultations, setConsultations] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -36,18 +38,22 @@ export const DataProvider = ({ children }) => {
         { data: exps, error: expsErr },
         { data: apps, error: appsErr },
         { data: cons, error: consErr },
-        { data: pays, error: paysErr }
+        { data: pays, error: paysErr },
+        { data: invs, error: invsErr },
+        { data: teamData, error: teamErr }
       ] = await Promise.all([
         supabase.from('doctors').select('*').eq('organization_id', activeOrgId),
         supabase.from('services').select('*').eq('organization_id', activeOrgId),
         supabase.from('patients').select('*').eq('organization_id', activeOrgId),
         supabase.from('expenses').select('*').eq('organization_id', activeOrgId),
-        supabase.from('appointments').select('*, patient:patients(full_name), doctor:doctors(full_name)').eq('organization_id', activeOrgId),
+        supabase.from('appointments').select('*, patient:patients(first_name, last_name, email, full_name), doctor:doctors(full_name)').eq('organization_id', activeOrgId),
         supabase.from('consultations').select('*, doctor:doctors(full_name)').eq('organization_id', activeOrgId),
-        supabase.from('payments').select('*, patient:patients(full_name)').eq('organization_id', activeOrgId)
+        supabase.from('payments').select('*, patient:patients(first_name, last_name, email, full_name)').eq('organization_id', activeOrgId),
+        supabase.from('invoices').select('*, patient:patients(first_name, last_name, email, full_name)').eq('organization_id', activeOrgId),
+        supabase.from('organization_users').select('*, profile:profiles(id, full_name, email)').eq('organization_id', activeOrgId)
       ]);
 
-      if (docsErr || servsErr || patsErr || expsErr || appsErr || consErr || paysErr) {
+      if (docsErr || servsErr || patsErr || expsErr || appsErr || consErr || paysErr || invsErr || teamErr) {
         throw new Error('Error al cargar datos de Supabase');
       }
 
@@ -60,22 +66,43 @@ export const DataProvider = ({ children }) => {
         ...s,
         price: s.base_price // Mapping for UI compatibility
       })));
-      setPatients(pats || []);
+      setPatients((pats || []).map(p => ({
+        ...p,
+        name: p.full_name || (p.first_name + ' ' + (p.last_name || '')).trim() || p.email || 'Paciente'
+      })));
       setExpenses(exps || []);
       
       // Map appointments to the internal format expected by the UI
-      setAppointments((apps || []).map(app => ({
-          ...app,
-          date: app.starts_at.split('T')[0],
-          patientName: app.patient?.full_name || 'Desconocido',
-          doctorName: app.doctor?.full_name || 'Desconocido',
+      setAppointments((apps || []).map(app => {
+          const patientName = app.patient?.full_name || (app.patient?.first_name + ' ' + (app.patient?.last_name || '')).trim() || 'Desconocido';
+          return {
+            ...app,
+            date: app.starts_at.split('T')[0],
+            patientName,
+            doctorName: app.doctor?.full_name || 'Desconocido',
           doctorId: app.doctor_id,
           patientId: app.patient_id,
           blocks: calculateBlocks(app.starts_at, app.ends_at)
-      })));
+          }
+      }));
 
       setConsultations(cons || []);
-      setPayments(pays || []);
+      setInvoices((invs || []).map(i => ({
+        ...i,
+        patientName: i.patient?.full_name || (i.patient?.first_name + ' ' + (i.patient?.last_name || '')).trim() || 'Paciente'
+      })));
+      setPayments((pays || []).map(p => ({
+        ...p,
+        patientName: p.patient?.full_name || (p.patient?.first_name + ' ' + (p.patient?.last_name || '')).trim() || 'Paciente'
+      })));
+      setTeam((teamData || []).map(m => ({
+        id: m.id,
+        user_id: m.user_id,
+        name: m.profile?.full_name || m.profile?.email || 'Miembro',
+        email: m.profile?.email,
+        role: m.role,
+        status: m.is_active ? 'active' : 'inactive'
+      })));
 
     } catch (err) {
       setError(err.message);
@@ -234,6 +261,26 @@ export const DataProvider = ({ children }) => {
     return data[0];
   };
 
+  const removeTeamMember = async (id) => {
+    const { error } = await supabase.from('organization_users').delete().eq('id', id);
+    if (error) throw error;
+    setTeam(prev => prev.filter(m => m.id !== id));
+  };
+
+  const addInvoice = async (invoiceData) => {
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert([{ 
+        ...invoiceData, 
+        organization_id: activeOrgId,
+        invoice_number: `INV-${Date.now().toString().slice(-6)}` 
+      }])
+      .select();
+    if (error) throw error;
+    await fetchAllData();
+    return data[0];
+  };
+
   const calculateBlocks = (startsAt, endsAt) => {
     const start = new Date(startsAt);
     const end = new Date(endsAt);
@@ -257,6 +304,8 @@ export const DataProvider = ({ children }) => {
       expenses, addExpense,
       appointments, addAppointment,
       consultations, addConsultation,
+      invoices, addInvoice,
+      team, removeTeamMember,
       loading, error, refresh: fetchAllData
     }}>
       {children}

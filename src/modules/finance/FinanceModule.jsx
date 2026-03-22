@@ -12,8 +12,11 @@ import { useData } from '../../context/DataContext';
 const FinanceModule = () => {
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
-  const { patients, addPayment, expenses, addExpense, payments, consultations } = useData();
-  const [activeTab, setActiveTab] = useState('overview');
+  const { 
+    patients, addPayment, expenses, addExpense, payments, consultations,
+    invoices, addInvoice, refresh
+  } = useData();
+  const [activeTab, setActiveTab] = useState('accounts'); // 'accounts', 'expenses', 'invoices'
   const [showModal, setShowModal] = useState(null); // 'expense' | null
   const [notification, setNotification] = useState(null);
   
@@ -28,10 +31,8 @@ const FinanceModule = () => {
   };
 
   // Calculations
-  const allPayments = useMemo(() => payments.map(p => ({
-    ...p,
-    patientName: p.patient?.full_name || 'Paciente'
-  })), [payments]);
+  // p.patientName is already mapped in DataContext
+  const allPayments = payments;
 
   const totalIngresos = useMemo(() => allPayments.reduce((acc, p) => 
     acc + (p.currency === 'USD' ? p.amount : p.amount / exchangeRate), 0), [allPayments, exchangeRate]);
@@ -51,7 +52,7 @@ const FinanceModule = () => {
       const balance = totalDue - totalPaid;
       return { 
         ...p, 
-        name: p.full_name,
+        name: p.name,
         totalPaid, 
         balance,
         paymentCount: patientPays.length
@@ -92,23 +93,28 @@ const FinanceModule = () => {
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex gap-4 border-b border-slate-100 pb-1">
-        {[
-          { id: 'overview', label: 'Cuentas de Pacientes', icon: <Users size={14} /> },
-          { id: 'expenses', label: 'Gastos y Compras', icon: <Briefcase size={14} /> },
-          { id: 'commissions', label: 'Especialistas', icon: <PieChart size={14} /> }
-        ].map(tab => (
+      <div className="flex border-b border-slate-100">
           <button 
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-none cursor-pointer rounded-t-xl ${activeTab === tab.id ? 'bg-white border-x border-t border-slate-100 text-primary -mb-px shadow-sm' : 'text-slate-400 hover:text-slate-600 bg-transparent'}`}
+            onClick={() => setActiveTab('accounts')}
+            className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'accounts' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
-            {tab.icon} {tab.label}
+            Cuentas de Pacientes
           </button>
-        ))}
-      </div>
+          <button 
+             onClick={() => setActiveTab('expenses')}
+             className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'expenses' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          >
+             Egresos
+          </button>
+          <button 
+             onClick={() => setActiveTab('invoices')}
+             className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'invoices' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          >
+             Facturas
+          </button>
+       </div>
 
-      {activeTab === 'overview' && (
+      {activeTab === 'accounts' && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {stats.map((stat, i) => (
@@ -242,6 +248,56 @@ const FinanceModule = () => {
           </div>
         </div>
       )}
+
+      {activeTab === 'invoices' && (
+        <div className="flex flex-col gap-6 animate-in slide-in-from-right-2 duration-300">
+          <div className="flex justify-between items-end">
+            <div className="flex flex-col">
+              <h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Facturación</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Documentos y comprobantes fiscales</p>
+            </div>
+          </div>
+
+          <div className="professional-card p-0 overflow-hidden border-none shadow-sm bg-white">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Nº Factura / Fecha</th>
+                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Paciente</th>
+                  <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
+                  <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Monto Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No hay facturas emitidas</td>
+                  </tr>
+                ) : invoices.map(inv => (
+                  <tr key={inv.id} className="hover:bg-slate-50 transition-all cursor-pointer group">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-slate-700">{inv.invoice_number}</span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">{new Date(inv.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-700">{inv.patientName}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${inv.status === 'paid' ? 'text-emerald-500 bg-emerald-50' : 'text-amber-500 bg-amber-50'}`}>
+                        {inv.status === 'paid' ? 'Pagada' : 'Pendiente'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-xs font-black text-slate-900">{formatPrice(inv.total_amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
 
       {showModal === 'expense' && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[4000] p-4">
