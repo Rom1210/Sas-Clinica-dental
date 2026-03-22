@@ -48,11 +48,15 @@ const BIDashboard = () => {
 
   const monthlyData = useMemo(() => generateDynamicData(14230, 30), []);
   const weeklyData = useMemo(() => {
-    // Para la semana lógica, calculamos una porción equivalente a una semana promedio del mes
     return generateDynamicData(Math.round(14230 / 4.28), 7);
   }, []);
+  const yearlyData = useMemo(() => {
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const raw = generateDynamicData(170760, 12);
+    return raw.map((d, i) => ({ ...d, name: monthNames[i] }));
+  }, []);
 
-  const chartData = viewMode === 'week' ? weeklyData : monthlyData;
+  const chartData = viewMode === 'week' ? weeklyData : viewMode === 'month' ? monthlyData : yearlyData;
 
   const maxIngreso = Math.max(...chartData.map(d => d.ingresos)) || 1;
 
@@ -100,7 +104,7 @@ const BIDashboard = () => {
           <div className="flex justify-between items-start mb-10">
              <div className="flex flex-col">
                 <h3 className="text-sm font-black text-slate-800 tracking-tight uppercase">
-                  Rendimiento {viewMode === 'week' ? 'Semanal' : 'Mensual'} (Ingresos)
+                  Rendimiento {viewMode === 'week' ? 'Semanal' : viewMode === 'month' ? 'Mensual' : 'Anual'} (Ingresos)
                 </h3>
                 <p className="text-[10px] text-slate-400 font-bold">Distribución de ingresos según el período</p>
              </div>
@@ -116,6 +120,12 @@ const BIDashboard = () => {
                   className={`px-4 py-1.5 text-[10px] font-black rounded-lg shadow-sm transition-all border-none cursor-pointer ${viewMode === 'month' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-slate-400 hover:text-slate-600 shadow-none'}`}
                 >
                   Mes
+                </button>
+                <button 
+                  onClick={() => setViewMode('year')}
+                  className={`px-4 py-1.5 text-[10px] font-black rounded-lg shadow-sm transition-all border-none cursor-pointer ${viewMode === 'year' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-slate-400 hover:text-slate-600 shadow-none'}`}
+                >
+                  Año
                 </button>
              </div>
           </div>
@@ -143,7 +153,7 @@ const BIDashboard = () => {
                 <Tooltip 
                   cursor={{ fill: 'transparent' }}
                   formatter={(value) => [`$${value.toLocaleString()}`, 'Ingresos']}
-                  labelFormatter={(label) => viewMode === 'week' ? label : `Día ${label}`}
+                  labelFormatter={(label) => viewMode === 'week' ? label : viewMode === 'month' ? `Día ${label}` : label}
                   contentStyle={{ 
                     borderRadius: '16px', 
                     border: 'none', 

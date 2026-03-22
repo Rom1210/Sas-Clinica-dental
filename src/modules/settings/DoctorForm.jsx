@@ -1,10 +1,128 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  Plus, Save, X, UserPlus, Stethoscope, CheckCircle, ChevronDown
+  Save, X, User, Stethoscope, CheckCircle, ChevronDown, UserPlus, Check
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 
+// ── Lista de especialidades (Simplificada) ────────────────────────
+const SPECIALTIES = [
+  'Odontólogo General',
+  'Especialista',
+];
+
+// ── SpecialtyAutocomplete Component ───────────────────────────────
+const SpecialtyAutocomplete = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value || '');
+  const containerRef = useRef(null);
+
+  useEffect(() => { setQuery(value || ''); }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return SPECIALTIES;
+    const q = query.toLowerCase();
+    return SPECIALTIES.filter(s => s.toLowerCase().includes(q));
+  }, [query]);
+
+  const handleSelect = (option) => {
+    setQuery(option);
+    onChange(option);
+    setOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: '0.625rem',
+          background: open ? 'white' : '#f8fafc',
+          border: `1px solid ${open ? '#3b82f6' : '#cbd5e1'}`,
+          borderRadius: '0.75rem',
+          padding: '0.625rem 0.875rem',
+          boxShadow: open ? '0 0 0 3px rgba(59,130,246,0.12)' : 'none',
+          transition: 'all 0.15s ease',
+          cursor: 'text',
+        }}
+        onClick={() => setOpen(true)}
+      >
+        <Stethoscope size={15} style={{ color: open ? '#3b82f6' : '#94a3b8', flexShrink: 0, transition: 'color 0.15s' }} />
+        <input
+          type="text"
+          placeholder="Escriba o seleccione especialidad..."
+          style={{
+            flex: 1, background: 'transparent',
+            border: 'none', outline: 'none',
+            fontSize: '0.875rem', color: '#334155',
+          }}
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => setOpen(true)}
+        />
+        <ChevronDown
+          size={15}
+          style={{
+            color: '#94a3b8', flexShrink: 0,
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+          }}
+        />
+      </div>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+            background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.10)', maxHeight: '220px', overflowY: 'auto', zIndex: 9999,
+          }}
+        >
+          {filtered.length > 0 ? (
+            filtered.map((opt) => (
+              <div
+                key={opt}
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(opt); }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '0.55rem 0.875rem', fontSize: '0.8rem', color: '#334155', cursor: 'pointer',
+                  background: value === opt ? '#eff6ff' : 'transparent',
+                  transition: 'background 0.1s',
+                }}
+                onMouseOver={e => e.currentTarget.style.background = value === opt ? '#dbeafe' : '#f8fafc'}
+                onMouseOut={e => e.currentTarget.style.background = value === opt ? '#eff6ff' : 'transparent'}
+              >
+                <span>{opt}</span>
+                {value === opt && <Check size={13} style={{ color: '#3b82f6', flexShrink: 0 }} />}
+              </div>
+            ))
+          ) : (
+            <div style={{ padding: '0.75rem 0.875rem', fontSize: '0.78rem', color: '#94a3b8', textAlign: 'center' }}>
+              No se encontraron resultados.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── DoctorForm ─────────────────────────────────────────────────────
 const DoctorForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -12,7 +130,7 @@ const DoctorForm = () => {
     
     const [formData, setFormData] = useState({
         name: '',
-        isSpecialist: false,
+        category: 'Odontólogo General',
         color: '#3b82f6',
         status: 'Activo'
     });
@@ -25,7 +143,7 @@ const DoctorForm = () => {
             if (doctor) {
                 setFormData({
                     name: doctor.name,
-                    isSpecialist: doctor.isSpecialist || false,
+                    category: doctor.isSpecialist ? (doctor.specialty || 'Profesional Especialista') : 'Odontólogo General',
                     color: doctor.color || '#3b82f6',
                     status: doctor.status
                 });
@@ -33,101 +151,170 @@ const DoctorForm = () => {
         }
     }, [id, doctors, isEditing]);
 
+    const handleClose = () => navigate('/settings');
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!formData.name) return;
 
+        const isSp = formData.category !== 'Odontólogo General';
+        const payload = {
+            ...formData,
+            isSpecialist: isSp,
+            specialty: formData.category,
+            id: isEditing ? parseInt(id) : undefined
+        };
+
         if (isEditing) {
-            updateDoctor({ ...formData, id: parseInt(id) });
+            updateDoctor(payload);
         } else {
-            addDoctor(formData);
+            addDoctor(payload);
         }
         navigate('/settings');
     };
 
     return (
-        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="flex justify-between items-start bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-50 relative">
-                <div className="flex flex-col">
-                    <h3 className="text-2xl font-black text-slate-800 tracking-tight uppercase">
-                        {isEditing ? 'Editar Especialista' : 'Nuevo Especialista'}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '560px', margin: '0 auto' }}
+          className="animate-in fade-in duration-400"
+        >
+            
+            {/* ── HEADER CARD ── */}
+            <div
+                style={{
+                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '1.25rem',
+                    padding: '1.25rem 1.75rem', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}
+            >
+                <div>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', lineHeight: 1.2, margin: 0 }}>
+                        {isEditing ? 'Editar especialista' : 'Nuevo especialista'}
+                    </h1>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '0.25rem' }}>
                         Gestión del equipo médico y especialidades
                     </p>
                 </div>
                 <button 
-                    onClick={() => navigate('/settings')}
-                    className="p-3 hover:bg-slate-50 rounded-full transition-all border-none cursor-pointer text-slate-300 hover:text-rose-500"
+                  onClick={handleClose}
+                  style={{
+                      width: '2rem', height: '2rem', borderRadius: '50%',
+                      background: '#f1f5f9', border: '1px solid #e2e8f0',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#94a3b8', cursor: 'pointer',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}
+                  onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}
                 >
-                    <X size={24} />
+                    <X size={14} />
                 </button>
             </div>
 
-            {/* Form Container */}
-            <div className="bg-white rounded-[3rem] p-12 shadow-sm border border-slate-50">
-                <form onSubmit={handleSubmit} className="flex flex-col gap-10">
-                    {/* Name Field */}
-                    <div className="flex flex-col gap-4">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">
+            {/* ── FORM CARD ── */}
+            <div
+                style={{
+                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '1.25rem',
+                    padding: '1.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}
+            >
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    
+                    {/* Nombre Completo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Nombre Completo
                         </label>
-                        <div className="flex items-center bg-white border border-slate-100 rounded-full px-8 py-5 shadow-sm focus-within:ring-8 focus-within:ring-primary/5 focus-within:border-primary/20 transition-all group">
+                        <div
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.625rem',
+                                background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.75rem',
+                                padding: '0.625rem 0.875rem', transition: 'all 0.15s ease',
+                            }}
+                            onFocusCapture={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.12)'; e.currentTarget.style.background = 'white'; }}
+                            onBlurCapture={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = '#f8fafc'; }}
+                        >
+                            <User size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
                             <input 
-                                type="text" 
-                                required 
-                                placeholder="Ej: Dr. / Dra. ..." 
-                                className="w-full bg-transparent border-none outline-none text-lg font-bold text-slate-700 placeholder:text-slate-300" 
+                                type="text" required placeholder="Ej: Dr. / Dra. Juan Pérez" 
+                                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: '0.875rem', color: '#334155' }}
                                 value={formData.name} 
                                 onChange={(e) => setFormData({...formData, name: e.target.value})} 
                             />
                         </div>
                     </div>
 
-                    {/* Classification Selector - Premium Dropdown */}
-                    <div className="flex flex-col gap-4">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">
+                    {/* Categoría (Autocomplete) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Categoría del Profesional
                         </label>
-                        <div className="relative group">
+                        <SpecialtyAutocomplete 
+                            value={formData.category}
+                            onChange={(val) => setFormData({...formData, category: val})}
+                        />
+                    </div>
+
+                    {/* Estado Administrativo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            Estado Administrativo
+                        </label>
+                        <div
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.625rem',
+                                background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.75rem',
+                                padding: '0.625rem 0.875rem', position: 'relative', transition: 'all 0.15s ease',
+                            }}
+                            onFocusCapture={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.12)'; e.currentTarget.style.background = 'white'; }}
+                            onBlurCapture={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = '#f8fafc'; }}
+                        >
+                            <CheckCircle size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
                             <select 
-                                className="w-full bg-white border border-slate-100 rounded-full px-10 py-5 shadow-sm text-lg font-bold text-slate-700 appearance-none cursor-pointer focus:ring-8 focus:ring-primary/5 focus:border-primary/20 transition-all outline-none relative z-10"
-                                value={formData.isSpecialist ? 'specialist' : 'general'}
-                                onChange={(e) => setFormData({...formData, isSpecialist: e.target.value === 'specialist'})}
-                                style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                                style={{
+                                    width: '100%', background: 'transparent', border: 'none', outline: 'none',
+                                    fontSize: '0.875rem', color: '#334155', cursor: 'pointer', appearance: 'none', paddingRight: '1.5rem'
+                                }}
+                                value={formData.status} 
+                                onChange={(e) => setFormData({...formData, status: e.target.value})}
                             >
-                                <option value="general">Odontólogo General</option>
-                                <option value="specialist">Profesional Especialista</option>
+                                <option value="Activo">Estado: Activo</option>
+                                <option value="Inactivo">Estado: Inactivo</option>
                             </select>
-                            <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-primary transition-colors z-20">
-                                <ChevronDown size={22} />
-                            </div>
+                            <ChevronDown size={15} style={{ position: 'absolute', right: '0.875rem', color: '#94a3b8', pointerEvents: 'none' }} />
                         </div>
                     </div>
 
-                    {/* Color Selection - Polished */}
-                    <div className="flex flex-col gap-4">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">
+                    {/* Color Identificador */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Color Identificador para Agenda
                         </label>
-                        <div className="flex flex-wrap items-center gap-5 bg-slate-50 border border-slate-100 rounded-[2.5rem] px-10 py-5 shadow-inner">
+                        <div style={{
+                            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.65rem',
+                            padding: '0.875rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '1rem',
+                        }}>
                             {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0f172a'].map(color => (
                                 <button
-                                    key={color}
-                                    type="button"
-                                    onClick={() => setFormData({...formData, color})}
-                                    className={`w-12 h-12 rounded-2xl border-2 transition-all duration-300 ${formData.color === color ? 'border-white ring-4 ring-primary shadow-lg scale-110' : 'border-transparent hover:scale-110 opacity-70 hover:opacity-100'}`}
-                                    style={{ backgroundColor: color }}
+                                    key={color} type="button" onClick={() => setFormData({...formData, color})}
+                                    style={{
+                                        width: '2.1rem', height: '2.1rem', borderRadius: '0.65rem',
+                                        backgroundColor: color, 
+                                        border: formData.color === color ? '2px solid white' : 'none',
+                                        boxShadow: formData.color === color ? `0 0 0 2px ${color}` : 'none',
+                                        cursor: 'pointer', transition: 'all 0.2s',
+                                        transform: formData.color === color ? 'scale(1.1)' : 'scale(1)'
+                                    }}
                                 />
                             ))}
-                            <div className="w-px h-10 bg-slate-200 mx-2 hidden sm:block"></div>
-                            <div className="flex items-center gap-4 bg-white border border-slate-200 rounded-2xl px-5 py-2.5 shadow-sm group hover:border-primary/30 transition-all">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Color Libre</span>
-                                <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
+                            <div style={{ width: '1px', height: '1.5rem', background: '#e2e8f0', margin: '0 0.25rem' }}></div>
+                            <div style={{ 
+                              display: 'flex', alignItems: 'center', gap: '0.4rem', 
+                              padding: '0.3rem 0.6rem', background: 'white', borderRadius: '0.6rem', border: '1px solid #e2e8f0'
+                            }}>
+                                <span style={{ fontSize: '0.6rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Libre</span>
+                                <div style={{ width: '1.25rem', height: '1.25rem', borderRadius: '4px', overflow: 'hidden' }}>
                                     <input 
                                         type="color" 
-                                        className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer border-none p-0 scale-150"
+                                        style={{ width: '200%', height: '200%', transform: 'translate(-25%, -25%)', border: 'none', padding: 0, cursor: 'pointer', background: 'transparent' }}
                                         value={formData.color}
                                         onChange={(e) => setFormData({...formData, color: e.target.value})}
                                     />
@@ -136,44 +323,38 @@ const DoctorForm = () => {
                         </div>
                     </div>
 
-                    {/* Status Select - Polished */}
-                    <div className="flex flex-col gap-4 max-w-sm">
-                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-6">
-                            Estado Administrativo
-                        </label>
-                        <div className="relative group">
-                            <select 
-                                className="w-full bg-white border border-slate-100 rounded-full px-10 py-5 shadow-sm text-lg font-bold text-slate-700 appearance-none cursor-pointer focus:ring-8 focus:ring-primary/5 focus:border-primary/20 transition-all outline-none relative z-10" 
-                                value={formData.status} 
-                                onChange={(e) => setFormData({...formData, status: e.target.value})}
-                                style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                            >
-                                <option value="Activo">Estado: Activo</option>
-                                <option value="Inactivo">Estado: Inactivo</option>
-                            </select>
-                            <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-primary transition-colors z-20">
-                                <ChevronDown size={22} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-6 pt-10 border-t border-slate-50">
-                        <button 
-                            type="button" 
-                            onClick={() => navigate('/settings')}
-                            className="px-10 py-5 bg-slate-50 text-slate-400 text-[12px] font-black uppercase tracking-widest rounded-full hover:bg-slate-100 transition-all border-none cursor-pointer min-w-[180px]"
+                    {/* Botones */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.625rem', paddingTop: '0.5rem' }}>
+                        <button
+                            type="button" onClick={handleClose}
+                            style={{
+                                padding: '0.5rem 1.25rem', background: '#f1f5f9',
+                                border: '1px solid #e2e8f0', borderRadius: '9999px',
+                                fontSize: '0.8rem', fontWeight: 600, color: '#475569', cursor: 'pointer',
+                            }}
+                            onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}
+                            onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}
                         >
                             Cancelar
                         </button>
-                        <button 
-                            type="submit" 
-                            className="flex-1 py-5 bg-slate-900 text-white text-[12px] font-black uppercase tracking-widest rounded-full hover:bg-primary transition-all shadow-[0_20px_40px_-10px_rgba(15,23,42,0.15)] hover:shadow-primary/30 border-none cursor-pointer flex items-center justify-center gap-3 group"
+                        <button
+                            type="submit"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.375rem',
+                                padding: '0.5rem 1.25rem', background: '#2563eb',
+                                border: 'none', borderRadius: '9999px',
+                                fontSize: '0.75rem', fontWeight: 700, color: 'white',
+                                textTransform: 'uppercase', letterSpacing: '0.05em',
+                                cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+                            }}
+                            onMouseOver={e => e.currentTarget.style.background = '#1d4ed8'}
+                            onMouseOut={e => e.currentTarget.style.background = '#2563eb'}
                         >
-                            <UserPlus size={18} className="group-hover:scale-110 transition-transform" />
-                            {isEditing ? 'Guardar Cambios' : 'Registrar Especialista'}
+                            <UserPlus size={14} />
+                            {isEditing ? 'Guardar cambios' : 'Registrar especialista'}
                         </button>
                     </div>
+
                 </form>
             </div>
         </div>

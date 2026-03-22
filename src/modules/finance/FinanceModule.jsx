@@ -13,7 +13,7 @@ const FinanceModule = () => {
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
   const { 
-    patients, addPayment, expenses, addExpense, payments, consultations,
+    patients, allPatients, addPayment, expenses, addExpense, payments, consultations,
     invoices, addInvoice, refresh
   } = useData();
   const [activeTab, setActiveTab] = useState('accounts'); // 'accounts', 'expenses', 'invoices'
@@ -41,7 +41,8 @@ const FinanceModule = () => {
   
   // Patient Financial Analysis
   const patientFinancials = useMemo(() => {
-    return patients.map(p => {
+    // Use allPatients (includes archived) so financial history persists after soft-delete
+    return (allPatients || patients).map(p => {
       const patientConsults = consultations.filter(c => c.patient_id === p.id);
       const patientPays = payments.filter(pay => pay.patient_id === p.id);
       

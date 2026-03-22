@@ -66,10 +66,11 @@ export const DataProvider = ({ children }) => {
         ...s,
         price: s.base_price // Mapping for UI compatibility
       })));
-      setPatients((pats || []).map(p => ({
+      const mappedPatients = (pats || []).map(p => ({
         ...p,
         name: p.full_name || (p.first_name + ' ' + (p.last_name || '')).trim() || p.email || 'Paciente'
-      })));
+      }));
+      setPatients(mappedPatients); // all patients (including archived)
       setExpenses(exps || []);
       
       // Map appointments to the internal format expected by the UI
@@ -267,6 +268,20 @@ export const DataProvider = ({ children }) => {
     setTeam(prev => prev.filter(m => m.id !== id));
   };
 
+  const deletePatient = async (id) => {
+    console.log('DataContext: Soft-deleting patient (archiving):', id);
+    const { error } = await supabase
+      .from('patients')
+      .update({ status: 'archived' })
+      .eq('id', id);
+    if (error) {
+      console.error('DataContext: Supabase archive error:', error);
+      throw error;
+    }
+    console.log('DataContext: Patient archived successfully.');
+    await fetchAllData();
+  };
+
   const addInvoice = async (invoiceData) => {
     const { data, error } = await supabase
       .from('invoices')
@@ -299,7 +314,8 @@ export const DataProvider = ({ children }) => {
     <DataContext.Provider value={{
       services, addService, removeService, updateService,
       doctors, addDoctor, removeDoctor, updateDoctor,
-      patients, addPatient, 
+      patients, addPatient, deletePatient, 
+      allPatients: patients, // includes archived — for finance/history views
       payments, addPayment,
       expenses, addExpense,
       appointments, addAppointment,

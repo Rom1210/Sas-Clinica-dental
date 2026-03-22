@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, User, DollarSign, Calendar, Clock, 
-  CheckCircle, AlertCircle, History, Plus, X, FileText, Loader2
+  CheckCircle, CheckCircle2, AlertCircle, History, Plus, X, FileText, Loader2
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useData } from '../../context/DataContext';
@@ -11,7 +11,7 @@ const PatientFinanceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
-  const { patients, addPayment, payments, consultations, addInvoice, refresh } = useData();
+  const { patients, allPatients, addPayment, payments, consultations, addInvoice, refresh } = useData();
   const [notification, setNotification] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   
@@ -19,7 +19,8 @@ const PatientFinanceDetail = () => {
     amount: '', currency: 'USD', method: 'Zelle', ref: ''
   });
 
-  const patient = useMemo(() => patients.find(p => p.id === id || p.id === parseInt(id)), [patients, id]);
+  // Use allPatients (includes archived) so archived patients' finance page still works
+  const patient = useMemo(() => (allPatients || patients).find(p => p.id === id || p.id === parseInt(id)), [allPatients, patients, id]);
 
   const financials = useMemo(() => {
     if (!patient) return null;
@@ -206,17 +207,17 @@ const PatientFinanceDetail = () => {
          </div>
 
          <div className="flex flex-col gap-6">
-            <div className="professional-card p-8 border-none bg-slate-900 text-white shadow-2xl flex flex-col gap-8 rounded-[2rem] relative overflow-hidden group">
-               <div className="absolute -right-6 -bottom-6 opacity-5 group-hover:scale-110 transition-transform duration-700">
-                  <CheckCircle2 size={160} />
-               </div>
-               
-               <div className="flex flex-col gap-1 relative z-10">
-                  <h4 className="text-sm font-black uppercase tracking-tight text-white/90">Nuevo Cobro</h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Registrar entrada a cuenta corriente</p>
+            <div className="professional-card p-8 border-none bg-slate-900 text-white shadow-2xl flex flex-col gap-6 rounded-[2rem]">
+               <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 mb-1">
+                     <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Nuevo Cobro</span>
+                  </div>
+                  <h4 className="text-lg font-black uppercase tracking-tight text-white">Registrar Ingreso</h4>
+                  <p className="text-[10px] text-slate-500 font-bold">Entrada a cuenta corriente del paciente</p>
                </div>
 
-               <form onSubmit={handleRegisterPayment} className="flex flex-col gap-6 relative z-10">
+               <form onSubmit={handleRegisterPayment} className="flex flex-col gap-5 relative z-10">
                   <div className="flex flex-col gap-2">
                      <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Monto Recibido</label>
                      <div className="relative">
@@ -232,14 +233,14 @@ const PatientFinanceDetail = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Moneda</label>
-                       <select className="px-4 py-4 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black text-white focus:outline-none cursor-pointer" value={formData.currency} onChange={(e) => setFormData({...formData, currency: e.target.value})}>
+                       <select className="px-4 py-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black text-white focus:outline-none cursor-pointer" value={formData.currency} onChange={(e) => setFormData({...formData, currency: e.target.value})}>
                           <option value="USD">USD ($)</option>
                           <option value="VES">VES (Bs.)</option>
                        </select>
                     </div>
                     <div className="flex flex-col gap-2">
                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Vía</label>
-                       <select className="px-4 py-4 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black text-white focus:outline-none cursor-pointer" value={formData.method} onChange={(e) => setFormData({...formData, method: e.target.value})}>
+                       <select className="px-4 py-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black text-white focus:outline-none cursor-pointer" value={formData.method} onChange={(e) => setFormData({...formData, method: e.target.value})}>
                           <option value="Zelle">Zelle</option>
                           <option value="Efectivo">Efectivo</option>
                           <option value="Pago Móvil">Pago Móvil</option>
@@ -252,7 +253,7 @@ const PatientFinanceDetail = () => {
                     <input type="text" placeholder="Ej: #9403, Transferencia..." className="px-6 py-4 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-bold text-white focus:outline-none" value={formData.ref} onChange={(e) => setFormData({...formData, ref: e.target.value})} />
                   </div>
 
-                  <button type="submit" className="mt-4 w-full py-5 bg-primary text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-primary/20 border-none cursor-pointer flex items-center justify-center gap-3">
+                  <button type="submit" className="mt-2 w-full py-4 bg-primary text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-primary/20 border-none cursor-pointer flex items-center justify-center gap-3">
                      <CheckCircle size={16} /> Confirmar Ingreso
                   </button>
                </form>

@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   Users, UserPlus, Mail, Shield, CheckCircle, 
   X, Loader2, Search, Filter, Trash2, 
-  MoreVertical, ShieldCheck, CreditCard
+  ShieldCheck, CreditCard
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -10,13 +10,14 @@ import { supabase } from '../../lib/supabase';
 
 const TeamManagement = () => {
   const { activeOrgId } = useAuth();
-  const { team, removeTeamMember, adminInvite } = useData();
+  const { team, removeTeamMember } = useData();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('doctor');
   const [notification, setNotification] = useState(null);
   const [isDeleting, setIsDeleting] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const notify = (msg) => {
     setNotification(msg);
@@ -26,14 +27,11 @@ const TeamManagement = () => {
   const handleInvite = async (e) => {
     e.preventDefault();
     setInviteLoading(true);
-    
     try {
-      const { data, error } = await supabase.functions.invoke('invite-member', {
+      const { error } = await supabase.functions.invoke('invite-member', {
         body: { email: inviteEmail, role: inviteRole, organization_id: activeOrgId }
       });
-      
       if (error) throw error;
-      
       notify(`Invitación enviada a ${inviteEmail}`);
       setShowInviteModal(false);
       setInviteEmail('');
@@ -56,8 +54,15 @@ const TeamManagement = () => {
     }
   };
 
+  const filteredTeam = team.filter(m => 
+    m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    m.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-500 pb-20">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '1000px', margin: '0 auto' }}
+      className="animate-in fade-in duration-500 pb-20"
+    >
       {notification && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[5000] px-6 py-3 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
           <CheckCircle size={14} className="text-emerald-400" />
@@ -65,77 +70,126 @@ const TeamManagement = () => {
         </div>
       )}
 
-      {/* Header Section */}
-      <div className="flex justify-between items-end">
-        <div className="flex flex-col">
-          <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Gestión de Equipo</h2>
-          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Control de acceso y roles corporativos</p>
+      {/* ── HEADER CARD ─────────────────────────────────── */}
+      <div style={{
+          background: 'white', border: '1px solid #e2e8f0', borderRadius: '1.25rem',
+          padding: '1.25rem 1.75rem', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', margin: 0, lineHeight: 1.2 }}>
+            Gestión de equipo
+          </h1>
+          <p style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '0.25rem' }}>
+            Control de acceso y roles corporativos
+          </p>
         </div>
         <button 
           onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-2 px-6 py-4 bg-primary text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-primary/20 border-none cursor-pointer"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.6rem 1.5rem', background: '#2563eb', border: 'none',
+            borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700, color: 'white',
+            textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(37,99,235,0.3)', transition: 'all 0.2s',
+          }}
+          onMouseOver={e => e.currentTarget.style.background = '#1d4ed8'}
+          onMouseOut={e => e.currentTarget.style.background = '#2563eb'}
         >
-          <UserPlus size={16} /> Añadir Miembro
+          <UserPlus size={16} /> Añadir miembro
         </button>
       </div>
 
-      {/* Team Table */}
-      <div className="professional-card p-0 overflow-hidden border-none shadow-sm bg-white">
-        <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+      {/* ── TABLE CARD ──────────────────────────────────── */}
+      <div style={{
+        background: 'white', border: '1px solid #e2e8f0', borderRadius: '1.25rem',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden'
+      }}>
+        {/* Search Bar Row */}
+        <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ position: 'relative', maxWidth: '380px' }}>
             <input 
               type="text" 
-              placeholder="Buscar por nombre o correo..." 
-              className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold focus:outline-none w-64 placeholder:text-slate-300" 
+              placeholder="buscar por nombre o correo electronico" 
+              style={{
+                width: '100%', padding: '0.625rem 3.5rem 0.625rem 1.25rem',
+                background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '9999px',
+                fontSize: '0.8rem', color: '#334155', outline: 'none', transition: 'all 0.15s ease'
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = 'white'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.12)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.boxShadow = 'none'; }}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 transition-all border-none bg-transparent cursor-pointer"><Filter size={16} /></button>
+            <Search 
+              size={16} 
+              style={{ position: 'absolute', right: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} 
+            />
           </div>
         </div>
 
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Miembro</th>
-                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Rol / Permisos</th>
-                <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
-                <th className="px-6 py-4"></th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '0.875rem 1.75rem', fontSize: '0.65rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Miembro</th>
+                <th style={{ padding: '0.875rem 1.75rem', fontSize: '0.65rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Rol / Permisos</th>
+                <th style={{ padding: '0.875rem 1.75rem', fontSize: '0.65rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Estado</th>
+                <th style={{ padding: '0.875rem 1.75rem' }}></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {team.map(member => (
-                <tr key={member.id} className="hover:bg-slate-50/50 transition-all group">
-                  <td className="px-6 py-5">
+              {filteredTeam.map(member => (
+                <tr key={member.id} className="hover:bg-slate-50/40 transition-all group">
+                  <td className="px-7 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold group-hover:bg-primary group-hover:text-white transition-all">
+                      <div style={{
+                        width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem',
+                        background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.875rem', fontWeight: 700, color: '#64748b', border: '1px solid #e2e8f0'
+                      }}>
                         {member.name[0]}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-700">{member.name}</span>
-                        <span className="text-[10px] text-slate-400 font-medium">{member.email}</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e293b' }}>{member.name}</span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{member.email}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
-                      <Shield size={10} className="text-primary" />
-                      <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest">{member.role}</span>
+                  <td className="px-7 py-4">
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                      padding: '0.25rem 0.625rem', background: '#eff6ff', borderRadius: '0.5rem',
+                      border: '1px solid #dbeafe'
+                    }}>
+                      <Shield size={11} style={{ color: '#2563eb' }} />
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                        {member.role}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-1.5 text-emerald-500 font-black text-[9px] uppercase tracking-widest">
-                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                      {member.status}
+                  <td className="px-7 py-4">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <div style={{ width: '0.375rem', height: '0.375rem', borderRadius: '50%', background: '#10b981' }} />
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase' }}>
+                        {member.status === 'active' ? 'ACTIVE' : member.status.toUpperCase()}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-5 text-right">
+                  <td className="px-7 py-4 text-right">
                     <button 
                       onClick={() => handleDelete(member.id)}
                       disabled={isDeleting === member.id || member.role === 'owner'}
-                      className="p-2 text-slate-300 hover:text-rose-500 bg-transparent border-none cursor-pointer disabled:opacity-30 transition-colors"
+                      style={{
+                        padding: '0.5rem', borderRadius: '0.5rem',
+                        border: 'none', background: 'transparent',
+                        color: member.role === 'owner' ? '#e2e8f0' : '#94a3b8',
+                        cursor: member.role === 'owner' ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={e => member.role !== 'owner' && (e.currentTarget.style.color = '#ef4444', e.currentTarget.style.background = '#fef2f2')}
+                      onMouseOut={e => member.role !== 'owner' && (e.currentTarget.style.color = '#94a3b8', e.currentTarget.style.background = 'transparent')}
                     >
                       {isDeleting === member.id ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
                     </button>
@@ -149,66 +203,66 @@ const TeamManagement = () => {
 
       {/* Invite Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[5000] p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden border border-white/20">
-            <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-              <div className="flex flex-col">
-                <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-                  <UserPlus size={20} className="text-primary" /> Invitar al Equipo
-                </h3>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Acceso Corporativo Seguro</p>
+        <div 
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6000, padding: '1rem' }}
+          className="animate-in fade-in duration-200"
+        >
+          <div style={{ background: 'white', borderRadius: '1.5rem', width: '100%', maxWidth: '420px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden' }}>
+            <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Invitar al equipo</h3>
+                <p style={{ fontSize: '0.6rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Acceso corporativo</p>
               </div>
-              <button 
-                onClick={() => setShowInviteModal(false)}
-                className="p-2 hover:bg-slate-200 rounded-full transition-all border-none cursor-pointer text-slate-400 bg-transparent"
-              >
-                <X size={20} />
+              <button onClick={() => setShowInviteModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '1.75rem', height: '1.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#94a3b8' }}>
+                <X size={14} />
               </button>
             </div>
             
-            <form onSubmit={handleInvite} className="p-10 flex flex-col gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input 
-                    type="email" required 
-                    placeholder="ejemplo@clinica.com" 
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                  />
+            <form onSubmit={handleInvite} style={{ padding: '1.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Correo electrónico</label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={14} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input 
+                      type="email" required placeholder="ejemplo@clinica.com" 
+                      style={{ width: '100%', padding: '0.625rem 1rem 0.625rem 2.25rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', fontSize: '0.875rem' }}
+                      value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Rol Asignado</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { id: 'doctor', label: 'Doctor', icon: <Shield size={12} /> },
-                    { id: 'receptionist', label: 'Recepción', icon: <Users size={12} /> },
-                    { id: 'finance', label: 'Finanzas', icon: <CreditCard size={12} /> },
-                    { id: 'admin', label: 'Admin', icon: <ShieldCheck size={12} /> }
-                  ].map(role => (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => setInviteRole(role.id)}
-                      className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 transition-all cursor-pointer font-black text-[9px] uppercase tracking-widest ${inviteRole === role.id ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-transparent border-slate-100 text-slate-400 hover:border-slate-200'}`}
-                    >
-                      {role.icon} {role.label}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Rol asignado</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    {['doctor', 'receptionist', 'finance', 'admin'].map(role => (
+                      <button
+                        key={role} type="button" onClick={() => setInviteRole(role)}
+                        style={{
+                          padding: '0.5rem', borderRadius: '0.6rem', border: '1px solid',
+                          borderColor: inviteRole === role ? '#3b82f6' : '#e2e8f0',
+                          background: inviteRole === role ? '#eff6ff' : 'white',
+                          color: inviteRole === role ? '#1e40af' : '#64748b',
+                          fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.15s'
+                        }}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <button 
-                type="submit" 
-                disabled={inviteLoading}
-                className="mt-6 w-full py-5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-primary transition-all shadow-xl shadow-slate-200 border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-3"
-              >
-                {inviteLoading ? <Loader2 className="animate-spin" size={18} /> : 'Enviar Invitación Real'}
-              </button>
+                <button 
+                  type="submit" disabled={inviteLoading}
+                  style={{
+                    marginTop: '0.5rem', padding: '0.75rem', background: '#1e293b', color: 'white',
+                    borderRadius: '0.75rem', border: 'none', fontSize: '0.75rem', fontWeight: 700,
+                    textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {inviteLoading ? <Loader2 className="animate-spin m-auto" size={18} /> : 'Enviar Invitación'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
