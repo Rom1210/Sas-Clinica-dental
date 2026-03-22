@@ -20,8 +20,21 @@ const ScheduleAppointment = () => {
 
   useEffect(() => {
     if (id && patients) {
-      const found = patients.find(p => p.id === id || p.id === parseInt(id));
-      if (found) setPatient(found);
+      let found = patients.find(p => p.id === id || p.id === parseInt(id));
+      if (!found) {
+        const mockPatients = [
+          { id: 1, name: 'Fabian Romero', dni: '31325708', email: 'fabanplay@gmail.com', phone: '04244570903' },
+          { id: 2, name: 'Mariana Sosa', dni: '28123456', email: 'msosa@gmail.com', phone: '04121234567' },
+          { id: 3, name: 'Juan Pérez', dni: '15456789', email: 'jperez@gmail.com', phone: '04149876543' },
+          { id: 4, name: 'Lucía Blanco', dni: '30987654', email: 'lblanco@gmail.com', phone: '04165551234' },
+        ];
+        found = mockPatients.find(p => p.id === id || p.id === parseInt(id));
+      }
+      if (found) {
+        setPatient(found);
+      } else {
+        setPatient({ id: parseInt(id), name: 'Paciente Desconocido', email: 'sn@gmail.com', phone: '0000000' });
+      }
     }
   }, [id, patients]);
 
@@ -107,7 +120,7 @@ const ScheduleAppointment = () => {
           <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col gap-8">
              <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
                 <Stethoscope size={20} className="text-primary" />
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">2. Odontólogo / Especialista</h3>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">2. Odont\u00f3logo / Especialista</h3>
              </div>
 
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

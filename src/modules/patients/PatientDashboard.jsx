@@ -35,12 +35,14 @@ const PatientDashboard = () => {
     <div className="flex flex-col gap-6">
       {/* Search & Actions Bar - Pill Style */}
       <div className="bg-white p-2 rounded-2xl flex items-center justify-between shadow-sm" style={{ border: '1px solid rgba(0,0,0,0.02)' }}>
-        <div className="relative flex-1 flex items-center">
-          <div className="flex items-center w-full relative">
-             <Search size={18} className="absolute left-6 text-slate-400" />
+        <div className="flex-1 flex items-center">
+          <div className="flex items-center w-full">
+             <div className="pl-5 pr-3 flex items-center justify-center flex-shrink-0">
+               <Search size={18} className="text-slate-400" />
+             </div>
              <input 
                type="text" 
-               className="w-full pl-14 pr-4 py-3 bg-transparent border-none text-sm focus:outline-none placeholder:text-slate-400 font-medium text-slate-800"
+               className="w-full pr-4 py-3 bg-transparent border-none text-sm focus:outline-none placeholder:text-slate-400 font-medium text-slate-800 tracking-tight"
                placeholder="Buscar pacientes por nombre, cédula o email..."
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
@@ -55,7 +57,11 @@ const PatientDashboard = () => {
       {/* Patient Cards List */}
       <div className="flex flex-col gap-3">
         {filteredPatients.map((patient) => (
-          <div key={patient.id} className="professional-card flex items-center justify-between p-4 px-6 hover:-translate-y-1 hover:shadow-lg transition-all cursor-pointer group">
+          <div 
+            key={patient.id} 
+            onClick={() => navigate(`/pacientes/${patient.id}`)}
+            className="professional-card flex items-center justify-between p-4 px-6 hover:-translate-y-1 hover:shadow-lg transition-all cursor-pointer group"
+          >
             <div className="grid grid-cols-12 gap-4 w-full items-center">
                
                {/* Col 1: Paciente */}

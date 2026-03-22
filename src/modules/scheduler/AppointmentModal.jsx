@@ -111,7 +111,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
     if (selectedServices.length === 0) return alert('Por favor agrega al menos un servicio.');
 
     const appointmentData = {
-      date: selection.date,
+      date: selection.dateStr,
       blocks: selection.blocks,
       startTime: selection.startTime,
       endTime: selection.endTime,
@@ -147,7 +147,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
                     <Clock size={12} className="text-primary" />
                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{selection.startTime} - {selection.endTime}</span>
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selection.date}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selection.dateStr}</span>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">•</span>
                   <span className="text-[10px] font-black text-primary uppercase tracking-widest">
                      {durationMin} MINUTOS

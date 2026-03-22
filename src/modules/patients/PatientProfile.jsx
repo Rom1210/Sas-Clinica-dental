@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { ArrowLeft, Search, Plus, Filter, Info, ChevronLeft, ChevronRight, CheckCircle2, FileText, User, AlertCircle, Activity, ClipboardList, Clock, Pencil, Download, ChevronDown, Calendar } from 'lucide-react';
 import Odontogram from './Odontogram';
-import NewConsultationModal from '../consultations/NewConsultationModal';
 import NewTreatmentPlan from '../treatments/NewTreatmentPlan';
 
 const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
@@ -17,9 +16,25 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   useEffect(() => {
     if (propPatient) {
       setPatient(propPatient);
-    } else if (id && patients) {
-      const found = patients.find(p => p.id === id || p.id === parseInt(id));
-      if (found) setPatient(found);
+    } else if (id) {
+      let found = null;
+      if (patients) {
+        found = patients.find(p => p.id === id || p.id === parseInt(id));
+      }
+      if (!found) {
+        const mockPatients = [
+          { id: 1, name: 'Fabian Romero', dni: '31325708', email: 'fabanplay@gmail.com', lastVisit: '10 Mar 2026', status: 'Activo', debt: 0, gender: 'M' },
+          { id: 2, name: 'Mariana Sosa', dni: '28123456', email: 'msosa@gmail.com', lastVisit: '05 Mar 2026', status: 'En Tratamiento', debt: 150, gender: 'F' },
+          { id: 3, name: 'Juan Pérez', dni: '15456789', email: 'jperez@gmail.com', lastVisit: '28 Feb 2026', status: 'Deuda', debt: 45, gender: 'M' },
+          { id: 4, name: 'Lucía Blanco', dni: '30987654', email: 'lblanco@gmail.com', lastVisit: '11 Mar 2026', status: 'Activo', debt: 0, gender: 'F' },
+        ];
+        found = mockPatients.find(p => p.id === id || p.id === parseInt(id));
+      }
+      if (found) {
+        setPatient(found);
+      } else {
+        setPatient({ id: parseInt(id), name: 'Paciente Desconocido', email: 'sn@gmail.com', dni: '00000000' });
+      }
     }
   }, [propPatient, id, patients]);
 
@@ -69,6 +84,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
     }
   }, [patient]);
 
+  const [activeTab, setActiveTab] = useState('General');
   const tabs = ['General', 'Planes de tratamiento', 'Historia médica', 'Historia de pago'];
 
   const handleSaveConsultation = (newConsultation) => {
@@ -173,7 +189,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">Consultas</h2>
                 <button 
-                  onClick={() => setShowNewConsultModal(true)}
+                  onClick={() => navigate(`/pacientes/${patient.id}/nueva-consulta`)}
                   className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white hover:opacity-90 rounded-xl transition-all text-sm font-bold border-none cursor-pointer shadow-sm"
                 >
                   <Plus size={16} /> Nueva consulta
@@ -199,7 +215,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                       <h3 className="text-base font-bold text-slate-800">0 resultados.</h3>
                       <p className="text-sm text-slate-500">No hay registros creados hasta ahora.</p>
                       <button 
-                        onClick={() => setShowNewConsultModal(true)}
+                        onClick={() => navigate(`/pacientes/${patient.id}/nueva-consulta`)}
                         className="mt-4 px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors cursor-pointer text-sm border-none shadow-none"
                       >
                         Crear primera consulta
@@ -521,14 +537,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
         )}
       </div>
       
-      {/* New Consultation Modal */}
-      {showNewConsultModal && (
-        <NewConsultationModal 
-          patient={patient}
-          onClose={() => setShowNewConsultModal(false)}
-          onSave={handleSaveConsultation}
-        />
-      )}
+
 
       {/* Local Toast Notification Simulation */}
       {toastMessage && (

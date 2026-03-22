@@ -163,7 +163,30 @@ button:focus {
 .w-full { width: 100%; }
 .w-fit { width: fit-content; }
 .relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.inset-x-0 { left: 0; right: 0; }
+.inset-y-0 { top: 0; bottom: 0; }
+.inset-x-1\.5 { left: 6px; right: 6px; }
+.top-0 { top: 0; }
+.left-0 { left: 0; }
+.right-0 { right: 0; }
+.bottom-0 { bottom: 0; }
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-50 { z-index: 50; }
 .h-full { height: 100%; }
+.h-8 { height: 2rem; }
+.h-10 { height: 2.5rem; }
+.h-12 { height: 3rem; }
+.h-14 { height: 3.5rem; }
+.min-h-14 { min-height: 3.5rem; }
+.w-8 { width: 2rem; }
+.w-10 { width: 2.5rem; }
+.w-12 { width: 3rem; }
+.w-14 { width: 3.5rem; }
 .max-w-sm { max-width: 24rem; }
 .max-w-5xl { max-width: 64rem; }
 .max-w-6xl { max-width: 72rem; }
@@ -246,6 +269,10 @@ button:focus {
 .bg-slate-50\/20 { background-color: rgba(248, 250, 252, 0.2); }
 .bg-slate-50\/30 { background-color: rgba(248, 250, 252, 0.3); }
 .bg-slate-50\/50 { background-color: rgba(248, 250, 252, 0.5); }
+.bg-primary\/0 { background-color: transparent; }
+.bg-primary\/5 { background-color: rgba(37, 99, 235, 0.05); }
+.group:hover .group-hover\:bg-primary\/\[0\.03\] { background-color: rgba(37, 99, 235, 0.03); }
+.group:hover .group-hover\:border-primary\/5 { border-color: rgba(37, 99, 235, 0.05); }
 .bg-slate-100 { background-color: var(--slate-100); }
 .bg-slate-800 { background-color: var(--slate-800); }
 .bg-slate-900 { background-color: var(--slate-900); }
@@ -351,3 +378,13 @@ button:focus {
 }
 
 .duration-500 { animation-duration: 500ms; }
+
+/* Visibility & Interaction Utilities */
+.opacity-0 { opacity: 0; }
+.opacity-10 { opacity: 0.1; }
+.opacity-20 { opacity: 0.2; }
+.opacity-60 { opacity: 0.6; }
+.pointer-events-none { pointer-events: none; }
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+.select-none { user-select: none; }
