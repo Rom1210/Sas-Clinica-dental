@@ -33,19 +33,15 @@ const PatientDashboard = () => {
     <div className="flex flex-col gap-6">
       {/* Search & Actions Bar - Pill Style */}
       <div className="bg-white p-2 rounded-2xl flex items-center justify-between shadow-sm" style={{ border: '1px solid rgba(0,0,0,0.02)' }}>
-        <div className="flex-1 flex items-center">
-          <div className="flex items-center w-full">
-             <div className="pl-5 pr-3 flex items-center justify-center flex-shrink-0">
-               <Search size={18} className="text-slate-400" />
-             </div>
-             <input 
-               type="text" 
-               className="w-full pr-4 py-3 bg-transparent border-none text-sm focus:outline-none placeholder:text-slate-400 font-medium text-slate-800 tracking-tight"
-               placeholder="Buscar pacientes por nombre, cédula o email..."
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-             />
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '8px', padding: '8px 16px' }}>
+            <input 
+              type="text" 
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: '14px', fontWeight: 500, color: '#1E293B' }}
+              placeholder="Buscar pacientes por nombre, cédula o email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search size={18} style={{ color: '#94A3B8', flexShrink: 0 }} />
         </div>
         <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all text-sm font-bold border-none cursor-pointer flex-shrink-0">
           <Filter size={16} /> Filtros

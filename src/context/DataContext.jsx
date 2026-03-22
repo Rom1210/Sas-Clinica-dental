@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -22,6 +22,40 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     if (user && activeOrgId) {
       fetchAllData();
+
+      // Real-time subscriptions
+      const channel = supabase
+        .channel('db-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'patients', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'appointments', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'consultations', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'invoices', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'payments', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     } else {
       setLoading(false);
     }
@@ -111,6 +145,93 @@ export const DataProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
+  // --- Real-time Stats Calculation ---
+  const stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    // Helper to filter by month/year
+    const isThisMonth = (dateStr) => {
+      const d = new Date(dateStr);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    };
+    const isLastMonth = (dateStr) => {
+      const d = new Date(dateStr);
+      return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+    };
+
+    // 1. Income (from Invoices or Payments - using Invoices for "total billed" consistency with Dashboard)
+    const thisMonthInvoices = invoices.filter(i => isThisMonth(i.created_at));
+    const lastMonthInvoices = invoices.filter(i => isLastMonth(i.created_at));
+    
+    const currentIncome = thisMonthInvoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
+    const lastIncome = lastMonthInvoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
+    const incomeTrend = lastIncome === 0 ? (currentIncome > 0 ? 100 : 0) : ((currentIncome - lastIncome) / lastIncome) * 100;
+
+    // 2. New Patients
+    const thisMonthPatients = patients.filter(p => isThisMonth(p.created_at));
+    const lastMonthPatients = patients.filter(p => isLastMonth(p.created_at));
+    const newPatientsTrend = thisMonthPatients.length - lastMonthPatients.length;
+
+    // 3. Conversion Rate (Consultations / Appointments)
+    const totalApps = appointments.length;
+    const totalCons = consultations.length;
+    const conversionRate = totalApps === 0 ? 0 : Math.round((totalCons / totalApps) * 100);
+    
+    // 4. Debtors List (Caza-Deudores)
+    const patientBalances = patients.map(p => {
+      const pCons = consultations.filter(c => c.patient_id === p.id);
+      const pPays = payments.filter(pay => pay.patient_id === p.id);
+      const totalDue = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
+      const totalPaid = pPays.reduce((sum, pay) => sum + (pay.amount || 0), 0);
+      const balance = totalDue - totalPaid;
+      return { 
+        ...p, 
+        balance, 
+        lastMovement: pCons[0]?.created_at || p.created_at 
+      };
+    }).filter(pf => pf.balance > 0).sort((a, b) => b.balance - a.balance);
+
+    // 5. Specialty Distribution
+    const specialtyMap = {
+      'Limpieza Dental': 'Estética',
+      'Endodoncia': 'Ortodoncia',
+      'Resina Simple': 'Ortodoncia',
+      'Resina Compuesta': 'Ortodoncia',
+      'Blanqueamiento': 'Estética',
+      'Extracción Simple': 'Cirugía',
+      'Consulta General': 'General'
+    };
+    const specialtyDist = consultations.reduce((acc, c) => {
+      const spec = specialtyMap[c.treatment_summary] || 'General';
+      acc[spec] = (acc[spec] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const totalConsultas = consultations.length || 1;
+    const specialtyData = Object.entries(specialtyDist).map(([name, count]) => ({
+      name,
+      value: Math.round((count / totalConsultas) * 100),
+      count
+    }));
+
+    return {
+      currentIncome,
+      incomeTrend,
+      newPatientsCount: thisMonthPatients.length,
+      newPatientsTrend,
+      conversionRate,
+      debtors: patientBalances,
+      specialtyData,
+      totalIncome: invoices.reduce((sum, i) => sum + (i.total_amount || 0), 0),
+      totalCuentasPorCobrar: patientBalances.reduce((sum, p) => sum + p.balance, 0),
+      totalEgresos: expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+    };
+  }, [invoices, patients, appointments, consultations, payments, expenses]);
 
   // --- Services ---
   const addService = async (service) => {
@@ -306,6 +427,7 @@ export const DataProvider = ({ children }) => {
       consultations, addConsultation,
       invoices, addInvoice,
       team, removeTeamMember,
+      stats,
       loading, error, refresh: fetchAllData
     }}>
       {children}

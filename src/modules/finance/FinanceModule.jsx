@@ -14,7 +14,7 @@ const FinanceModule = () => {
   const { exchangeRate, formatPrice } = useSettings();
   const { 
     patients, addPayment, expenses, addExpense, payments, consultations,
-    invoices, addInvoice, refresh
+    invoices, addInvoice, refresh, stats: globalStats
   } = useData();
   const [activeTab, setActiveTab] = useState('accounts'); // 'accounts', 'expenses', 'invoices'
   const [showModal, setShowModal] = useState(null); // 'expense' | null
@@ -63,9 +63,9 @@ const FinanceModule = () => {
   const totalCuentasPorCobrar = useMemo(() => patientFinancials.reduce((acc, p) => acc + Math.max(0, p.balance), 0), [patientFinancials]);
 
   const stats = [
-    { label: 'Cuentas por Cobrar', value: totalCuentasPorCobrar, icon: <TrendingDown />, color: 'text-rose-500', bg: 'bg-rose-50' },
-    { label: 'Ingresos Totales', value: totalIngresos, icon: <ArrowUpRight />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { label: 'Diferencial Operativo', value: totalIngresos - totalEgresos, icon: <PieChart />, color: 'text-primary', bg: 'bg-blue-50' }
+    { label: 'Cuentas por Cobrar', value: globalStats.totalCuentasPorCobrar, icon: <TrendingDown />, color: 'text-rose-500', bg: 'bg-rose-50' },
+    { label: 'Ingresos Totales', value: globalStats.totalIncome, icon: <ArrowUpRight />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    { label: 'Diferencial Operativo', value: globalStats.totalIncome - globalStats.totalEgresos, icon: <PieChart />, color: 'text-primary', bg: 'bg-blue-50' }
   ];
 
   const handleRegisterExpense = (e) => {
@@ -92,27 +92,38 @@ const FinanceModule = () => {
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-100">
-          <button 
-            onClick={() => setActiveTab('accounts')}
-            className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'accounts' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+      {/* Navigation Tabs — KPI Card Style (Horizontal) */}
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', width: '100%' }}>
+        {[
+          { id: 'accounts', label: 'Cuentas de Pacientes', icon: '🏦', sub: 'Saldos y deudas' },
+          { id: 'expenses', label: 'Egresos',              icon: '💸', sub: 'Gastos registrados' },
+          { id: 'invoices', label: 'Facturas',             icon: '🧾', sub: 'Emisión y cobro' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1,
+              textAlign: 'left',
+              padding: '20px 24px',
+              borderRadius: '20px',
+              border: activeTab === tab.id ? '2px solid #2563EB' : '2px solid #F1F5F9',
+              background: activeTab === tab.id ? '#fff' : '#F8FAFC',
+              boxShadow: activeTab === tab.id ? '0 8px 24px rgba(37,99,235,0.12)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={e => { if (activeTab !== tab.id) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
+            onMouseOut={e => { if (activeTab !== tab.id) e.currentTarget.style.boxShadow = 'none'; }}
           >
-            Cuentas de Pacientes
+            <div style={{ fontSize: '22px', marginBottom: '10px' }}>{tab.icon}</div>
+            <p style={{ fontSize: '9px', fontWeight: 900, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>{tab.sub}</p>
+            <p style={{ fontSize: '14px', fontWeight: 900, letterSpacing: '-0.02em', color: activeTab === tab.id ? '#2563EB' : '#1E293B' }}>
+              {tab.label}
+            </p>
           </button>
-          <button 
-             onClick={() => setActiveTab('expenses')}
-             className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'expenses' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-          >
-             Egresos
-          </button>
-          <button 
-             onClick={() => setActiveTab('invoices')}
-             className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'invoices' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-          >
-             Facturas
-          </button>
-       </div>
+        ))}
+      </div>
 
       {activeTab === 'accounts' && (
         <>
@@ -197,7 +208,7 @@ const FinanceModule = () => {
                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Estado de Fondos</span>
                   </div>
                   <div className="flex flex-col gap-2 relative z-10">
-                    <span className="text-2xl font-black text-white leading-none">{formatPrice(totalIngresos)}</span>
+                    <span className="text-2xl font-black text-white leading-none">{formatPrice(globalStats.totalIncome)}</span>
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Capital Disponible Total</p>
                   </div>
                </div>

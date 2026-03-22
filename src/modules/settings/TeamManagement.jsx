@@ -82,13 +82,13 @@ const TeamManagement = () => {
       {/* Team Table */}
       <div className="professional-card p-0 overflow-hidden border-none shadow-sm bg-white">
         <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+          <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '8px 14px', gap: '8px', width: '260px' }}>
             <input 
               type="text" 
               placeholder="Buscar por nombre o correo..." 
-              className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold focus:outline-none w-64 placeholder:text-slate-300" 
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: '11px', fontWeight: 600, color: '#334155' }}
             />
+            <Search size={14} style={{ color: '#94A3B8', flexShrink: 0 }} />
           </div>
           <div className="flex items-center gap-2">
             <button className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 transition-all border-none bg-transparent cursor-pointer"><Filter size={16} /></button>
