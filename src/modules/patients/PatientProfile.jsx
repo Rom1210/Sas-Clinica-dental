@@ -62,7 +62,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   });
 
   const handleScheduleAppointment = () => {
-    navigate(`/pacientes/${patient.id}/agendar-cita`);
+    navigate(`/pacientes/${patient.id}/nueva-cita`);
   };
 
   React.useEffect(() => {

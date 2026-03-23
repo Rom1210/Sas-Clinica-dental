@@ -1,0 +1,34 @@
+remote: error: GH013: Repository rule violations found for refs/heads/main.        
+remote: 
+remote: - GITHUB PUSH PROTECTION        
+remote:   ÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇö        
+remote:     Resolve the following violations before pushing again        
+remote: 
+remote:     - Push cannot contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how to resolve a blocked push        
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push        
+remote:             
+remote:             
+remote:       ÔÇöÔÇö Supabase Secret Key ÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇöÔÇö        
+remote:        locations:        
+remote:          - commit: 1e562adfbeef1a4ee8990089642126d08849ebf9        
+remote:            path: tmp/inject_all.js:2        
+remote:          - commit: 1e562adfbeef1a4ee8990089642126d08849ebf9        
+remote:            path: tmp/inject_debt.js:2        
+remote:          - commit: 1e562adfbeef1a4ee8990089642126d08849ebf9        
+remote:            path: tmp/inject_debt2.js:2        
+remote:          - commit: 1e562adfbeef1a4ee8990089642126d08849ebf9        
+remote:            path: tmp/inject_debt3.js:2        
+remote:          - commit: 1e562adfbeef1a4ee8990089642126d08849ebf9        
+remote:            path: tmp/list_pats.js:2        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/Rom1210/Sas-Clinica-dental/security/secret-scanning/unblock-secret/3BHWdcnP7UP4CvDVrq0ZwfjGl4S        
+remote:             
+remote: 
+remote: 
+To https://github.com/Rom1210/Sas-Clinica-dental.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/Rom1210/Sas-Clinica-dental.git'

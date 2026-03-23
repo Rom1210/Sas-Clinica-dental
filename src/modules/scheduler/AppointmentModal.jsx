@@ -3,7 +3,7 @@ import { X, User, Clock, Calendar, CheckCircle, Plus, Trash2, Search, Stethoscop
 import { useData } from '../../context/DataContext';
 
 const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPatient = null }) => {
-  const { doctors, patients, services, addAppointment } = useData();
+  const { doctors, patients, services, addAppointment, addPatient } = useData();
   
   // Patient State
   const [patientMode, setPatientMode] = useState('search'); // 'search' or 'new'
@@ -131,8 +131,10 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
       const appointmentData = {
         patient_id: patientId,
         doctor_id: selectedDoctorId,
-        starts_at: `${selection.date}T${selection.startTime}:00`,
-        ends_at: `${selection.date}T${selection.endTime}:00`,
+        starts_at: `${selection.dateStr}T${selection.startTime}:00`,
+        ends_at: `${selection.dateStr}T${selection.endTime}:00`,
+        start_at: `${selection.dateStr}T${selection.startTime}:00`,
+        end_at: `${selection.dateStr}T${selection.endTime}:00`,
         status: 'scheduled',
         notes: `Servicios: ${selectedServices.map(s => s.name).join(', ')}`,
         // In a real app we'd also link services via invoice_items

@@ -26,6 +26,7 @@ import PatientRegistration from './modules/patients/PatientRegistration';
 import PatientDashboard from './modules/patients/PatientDashboard';
 import PatientProfile from './modules/patients/PatientProfile';
 import ScheduleAppointment from './modules/patients/ScheduleAppointment';
+import NewAppointmentFlow from './modules/patients/NewAppointmentFlow';
 import NewConsultation from './modules/consultations/NewConsultation';
 import FinanceModule from './modules/finance/FinanceModule';
 import PatientFinanceDetail from './modules/finance/PatientFinanceDetail';
@@ -150,8 +151,13 @@ const AppContent = () => {
           </div>
           
           <div className="flex items-center gap-4">
-            <button className="btn btn-primary shadow-sm hover:shadow-md transition-all" onClick={() => setShowPatientModal(true)} style={{ height: '2.5rem', padding: '0 1rem', borderRadius: '16px', fontWeight: 600 }}>
-               <Plus size={18} className="mr-2" /> Nuevo Paciente
+            <button
+              onClick={() => setShowPatientModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.65rem 1.5rem', borderRadius: '9999px', background: '#2563EB', color: '#fff', fontWeight: 900, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.35)', transition: 'all 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.boxShadow='0 6px 20px rgba(37,99,235,0.5)'}
+              onMouseOut={e => e.currentTarget.style.boxShadow='0 4px 14px rgba(37,99,235,0.35)'}
+            >
+              <Plus size={16} /> NUEVO PACIENTE
             </button>
           </div>
         </header>
@@ -169,7 +175,8 @@ const AppContent = () => {
               <Route path="/scheduler" element={<Scheduler />} />
               <Route path="/patients" element={<PatientDashboard />} />
               <Route path="/pacientes/:id" element={<PatientProfile />} />
-              <Route path="/pacientes/:id/agendar-cita" element={<ScheduleAppointment />} />
+              <Route path="/pacientes/:id/agendar-cita" element={<NewAppointmentFlow />} />
+              <Route path="/pacientes/:id/nueva-cita" element={<NewAppointmentFlow />} />
               <Route path="/pacientes/:id/nueva-consulta" element={<NewConsultation />} />
               <Route path="/finance" element={<FinanceModule />} />
               <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
