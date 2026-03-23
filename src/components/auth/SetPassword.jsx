@@ -58,15 +58,15 @@ const SetPassword = () => {
                 
                 if (profError) console.error('Error profile:', profError);
 
-                // Create organization link
+                // Create/Update organization link to set as ACTIVE
                 const { error: linkError } = await supabase
                     .from('organization_users')
-                    .upsert({
-                        organization_id: orgId,
-                        user_id: user.id,
-                        role: role,
-                        is_active: true
-                    });
+                    .update({
+                        is_active: true,
+                        status: 'active'
+                    })
+                    .eq('organization_id', orgId)
+                    .eq('user_id', user.id);
                 
                 if (linkError) console.error('Error link:', linkError);
             }

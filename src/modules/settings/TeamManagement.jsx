@@ -29,7 +29,12 @@ const TeamManagement = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('invite-member', {
-        body: { email: inviteEmail, role: inviteRole, organization_id: activeOrgId }
+        body: { 
+          email: inviteEmail, 
+          role: inviteRole, 
+          organization_id: activeOrgId,
+          redirectTo: window.location.origin + '/set-password'
+        }
       });
       
       if (error) throw error;
@@ -126,10 +131,17 @@ const TeamManagement = () => {
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <div className="flex items-center gap-1.5 text-emerald-500 font-black text-[9px] uppercase tracking-widest">
-                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                      {member.status}
-                    </div>
+                    {member.status === 'invited' ? (
+                      <div className="flex items-center gap-1.5 text-amber-500 font-bold text-[9px] uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-full w-fit">
+                        <Loader2 size={10} className="animate-spin" />
+                        Invitado
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-emerald-500 font-bold text-[9px] uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                        Activo
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-5 text-right">
                     <button 
