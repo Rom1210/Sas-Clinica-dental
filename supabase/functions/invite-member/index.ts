@@ -17,10 +17,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { email, role, organization_id } = await req.json()
+    const { email, role, organization_id, redirectTo } = await req.json()
 
     // 1. Invite the user
-    const { data: authData, error: authError } = await supabaseClient.auth.admin.inviteUserByEmail(email)
+    // We pass the redirectTo if provided by the client, helping with production vs localhost
+    const { data: authData, error: authError } = await supabaseClient.auth.admin.inviteUserByEmail(email, {
+      redirectTo: redirectTo || Deno.env.get('PUBLIC_SITE_URL') || 'http://localhost:3000',
+      data: { organization_id, role }
+    })
     if (authError) throw authError
 
     // 2. Create profile and assignment
@@ -34,7 +38,8 @@ serve(async (req) => {
         organization_id,
         user_id: authData.user.id,
         role,
-        is_active: true
+        is_active: false,
+        status: 'invited'
       })
 
     if (orgError) throw orgError

@@ -28,8 +28,13 @@ const TeamManagement = () => {
     e.preventDefault();
     setInviteLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('invite-member', {
-        body: { email: inviteEmail, role: inviteRole, organization_id: activeOrgId }
+      const { data, error } = await supabase.functions.invoke('invite-member', {
+        body: { 
+          email: inviteEmail, 
+          role: inviteRole, 
+          organization_id: activeOrgId,
+          redirectTo: window.location.origin + '/set-password'
+        }
       });
       if (error) throw error;
       notify(`Invitación enviada a ${inviteEmail}`);
@@ -169,13 +174,18 @@ const TeamManagement = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-7 py-4">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                      <div style={{ width: '0.375rem', height: '0.375rem', borderRadius: '50%', background: '#10b981' }} />
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase' }}>
-                        {member.status === 'active' ? 'ACTIVE' : member.status.toUpperCase()}
-                      </span>
-                    </div>
+                  <td className="px-6 py-5">
+                    {member.status === 'invited' ? (
+                      <div className="flex items-center gap-1.5 text-amber-500 font-bold text-[9px] uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-full w-fit">
+                        <Loader2 size={10} className="animate-spin" />
+                        Invitado
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-emerald-500 font-bold text-[9px] uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                        Activo
+                      </div>
+                    )}
                   </td>
                   <td className="px-7 py-4 text-right">
                     <button 

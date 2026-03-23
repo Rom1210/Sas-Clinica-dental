@@ -178,7 +178,7 @@ export const DataProvider = ({ children }) => {
         name: m.profile?.full_name || m.profile?.email || 'Miembro',
         email: m.profile?.email,
         role: m.role,
-        status: m.is_active ? 'active' : 'inactive'
+        status: m.status || (m.is_active ? 'active' : 'inactive')
       })));
 
     } catch (err) {
