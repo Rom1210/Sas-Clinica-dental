@@ -51,6 +51,16 @@ export const DataProvider = ({ children }) => {
           { event: '*', schema: 'public', table: 'payments', filter: `organization_id=eq.${activeOrgId}` },
           () => fetchAllData()
         )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'services', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'doctors', filter: `organization_id=eq.${activeOrgId}` },
+          () => fetchAllData()
+        )
         .subscribe();
 
       return () => {
