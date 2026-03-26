@@ -6,6 +6,7 @@ import {
   Calendar, ArrowLeft, User
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { SERVICE_OPTIONS } from '../../lib/constants';
 
 /* ─────────────────────────────────────────────────────────────
    MOCK CATALOG (se usa sólo si no hay datos reales de Supabase)
@@ -388,7 +389,26 @@ const NewAppointmentFlow = () => {
 
   /* Catalog resolution */
   const catalog = useMemo(() => {
-    return dbServices.length > 0 ? dbServices : MOCK_SERVICES;
+    // Start with services from database (those have custom prices)
+    const base = [...dbServices];
+    
+    // Identificadores de nombres en la DB para evitar duplicados
+    const dbNames = new Set(dbServices.map(s => s.name.toLowerCase()));
+
+    // Añadir opciones del catálogo general que no estén en la DB
+    const suggestions = SERVICE_OPTIONS
+      .filter(name => !dbNames.has(name.toLowerCase()))
+      .map((name, idx) => ({
+        id: `suggestion-${idx}`,
+        name: name,
+        price: 0,
+        isSuggestion: true
+      }));
+
+    const fullCatalog = [...base, ...suggestions];
+    
+    // Si realmente no hay nada (muy raro), caer en MOCK_SERVICES
+    return fullCatalog.length > 0 ? fullCatalog : MOCK_SERVICES;
   }, [dbServices]);
 
   const availableDoctors = useMemo(() => {

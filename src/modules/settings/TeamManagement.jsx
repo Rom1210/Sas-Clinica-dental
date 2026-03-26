@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, UserPlus, Mail, Shield, CheckCircle, 
   X, Loader2, Search, Filter, Trash2, 
-  ShieldCheck, CreditCard
+  ShieldCheck, CreditCard, ArrowLeft
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 const TeamManagement = () => {
+  const navigate = useNavigate();
   const { activeOrgId } = useAuth();
   const { team, removeTeamMember } = useData();
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -74,6 +76,14 @@ const TeamManagement = () => {
           {notification}
         </div>
       )}
+
+      {/* Back Button */}
+      <button 
+        onClick={() => navigate('/settings')}
+        className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-semibold text-sm cursor-pointer border-none bg-transparent p-0 mb-2 w-fit"
+      >
+        <ArrowLeft size={16} /> Volver a Configuración
+      </button>
 
       {/* ── HEADER CARD ─────────────────────────────────── */}
       <div style={{

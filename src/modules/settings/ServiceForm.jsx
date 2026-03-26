@@ -2,54 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, ClipboardList, DollarSign, ChevronDown, Check } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { SERVICE_OPTIONS } from '../../lib/constants';
 
-// ── Lista completa de servicios odontológicos ──────────────────────
-const SERVICE_OPTIONS = [
-  'Consulta odontológica',
-  'Evaluación dental',
-  'Limpieza dental (profilaxis)',
-  'Destartraje (limpieza profunda)',
-  'Aplicación de flúor',
-  'Sellantes dentales',
-  'Resina dental',
-  'Obturación dental',
-  'Reconstrucción dental',
-  'Incrustaciones dentales',
-  'Endodoncia (tratamiento de conducto)',
-  'Retratamiento de conducto',
-  'Extracción dental simple',
-  'Extracción de muela',
-  'Extracción de muela del juicio',
-  'Cirugía de cordales',
-  'Cirugía oral menor',
-  'Tratamiento periodontal',
-  'Curetaje dental',
-  'Raspado y alisado radicular',
-  'Prótesis dental removible',
-  'Prótesis fija',
-  'Coronas dentales',
-  'Puentes dentales',
-  'Blanqueamiento dental',
-  'Diseño de sonrisa',
-  'Carillas dentales',
-  'Estética dental',
-  'Ortodoncia',
-  'Ortodoncia metálica',
-  'Ortodoncia estética',
-  'Ortodoncia invisible',
-  'Retenedores',
-  'Implante dental',
-  'Rehabilitación sobre implantes',
-  'Radiografía dental',
-  'Radiografía panorámica',
-  'Radiografía periapical',
-  'Consulta odontopediátrica',
-  'Tratamiento infantil',
-  'Control infantil',
-  'Urgencia odontológica',
-  'Control post tratamiento',
-  'Revisión dental',
-];
 
 // ── ServiceAutocomplete component ──────────────────────────────────
 const ServiceAutocomplete = ({ value, onChange }) => {

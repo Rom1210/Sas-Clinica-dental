@@ -8,7 +8,8 @@ import {
   Settings, 
   Plus,
   LogOut,
-  Loader2
+  Loader2,
+  ChevronRight
 } from 'lucide-react';
 
 // Context
@@ -20,6 +21,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import SetPassword from './components/auth/SetPassword';
 import TeamManagement from './modules/settings/TeamManagement';
+import AccountPanel from './modules/account/AccountPanel';
 
 // Modules
 import PatientRegistration from './modules/patients/PatientRegistration';
@@ -32,7 +34,7 @@ import FinanceModule from './modules/finance/FinanceModule';
 import PatientFinanceDetail from './modules/finance/PatientFinanceDetail';
 import Scheduler from './modules/scheduler/Scheduler';
 import BIDashboard from './modules/bi/BIDashboard';
-import SettingsManagement from './modules/settings/SettingsManagement';
+import ControlMaster from './modules/master/ControlMaster';
 import ServiceForm from './modules/settings/ServiceForm';
 import DoctorForm from './modules/settings/DoctorForm';
 
@@ -42,6 +44,7 @@ const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPatientModal, setShowPatientModal] = useState(false);
+  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
   if (authLoading) {
@@ -117,8 +120,12 @@ const AppContent = () => {
         </nav>
 
         <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
-          <div className="flex items-center gap-3 p-2 hover:bg-slate-50 transition-all rounded-lg" style={{ cursor: 'pointer' }}>
-            <div className="avatar" style={{ width: 36, height: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
+          <div 
+            className="flex items-center gap-3 p-2 hover:bg-slate-50 transition-all rounded-lg group" 
+            style={{ cursor: 'pointer' }}
+            onClick={() => setIsUserPanelOpen(true)}
+          >
+            <div className="avatar group-hover:scale-105 transition-transform" style={{ width: 36, height: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
               {profile?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
             </div>
             <div className="flex flex-col flex-1 overflow-hidden">
@@ -127,13 +134,9 @@ const AppContent = () => {
               </span>
               <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Admin</span>
             </div>
-            <button 
-              onClick={() => signOut()}
-              className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-all border-none bg-transparent cursor-pointer"
-              title="Cerrar Sesión"
-            >
-              <LogOut size={16} />
-            </button>
+            <div className="p-2 text-slate-300 group-hover:text-slate-500 transition-colors">
+              <ChevronRight size={14} />
+            </div>
           </div>
         </div>
       </aside>
@@ -180,7 +183,7 @@ const AppContent = () => {
               <Route path="/pacientes/:id/nueva-consulta" element={<NewConsultation />} />
               <Route path="/finance" element={<FinanceModule />} />
               <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
-              <Route path="/settings" element={<SettingsManagement />} />
+              <Route path="/settings" element={<ControlMaster />} />
               <Route path="/settings/new-service" element={<ServiceForm />} />
               <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
               <Route path="/settings/new-doctor" element={<DoctorForm />} />
@@ -214,6 +217,18 @@ const AppContent = () => {
           </div>
         </div>
       )}
+
+      {/* User Panel Drawer (Account Module) */}
+      <AccountPanel 
+        isOpen={isUserPanelOpen}
+        onClose={() => setIsUserPanelOpen(false)}
+        user={user}
+        profile={profile}
+        onLogout={() => {
+          setIsUserPanelOpen(false);
+          signOut();
+        }}
+      />
 
       {/* Toast Notification */}
       {toast && (

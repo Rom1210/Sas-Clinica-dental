@@ -156,9 +156,9 @@ const FinanceModule = () => {
                   <table className="w-full text-left">
                      <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
-                           <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Paciente</th>
+                           <th className="px-6 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Paciente</th>
                            <th className="px-6 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
-                           <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Faltante</th>
+                           <th className="px-6 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Faltante</th>
                            <th className="px-6 py-4"></th>
                         </tr>
                      </thead>
@@ -166,11 +166,11 @@ const FinanceModule = () => {
                         {patientFinancials.map(pf => (
                           <tr key={pf.id} onClick={() => navigate(`/paciente/${pf.id}/estado-cuenta`)} className="hover:bg-slate-50 transition-all group cursor-pointer">
                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-all">
+                                <div className="flex items-center gap-3 justify-center">
+                                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-all shrink-0">
                                       <User size={14} />
                                    </div>
-                                   <div className="flex flex-col">
+                                   <div className="flex flex-col text-left">
                                       <span className="text-xs font-black text-slate-700">{pf.name}</span>
                                       <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{pf.paymentCount} pagos</span>
                                    </div>
@@ -182,11 +182,13 @@ const FinanceModule = () => {
                                    {pf.balance <= 0 ? 'Solvente' : 'Con Deuda'}
                                 </div>
                              </td>
-                             <td className="px-6 py-4 text-right">
-                                <span className={`text-[11px] font-black ${pf.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                  {formatPrice(pf.balance)}
-                                </span>
-                             </td>
+                              <td className="px-6 py-4">
+                                 <div className="flex justify-center">
+                                    <span className={`text-[11px] font-black ${pf.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                      {formatPrice(pf.balance)}
+                                    </span>
+                                 </div>
+                              </td>
                              <td className="px-6 py-4 text-right">
                                 <ChevronRight size={14} className="text-slate-300 group-hover:text-primary transition-colors" />
                              </td>

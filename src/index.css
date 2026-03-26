@@ -120,8 +120,16 @@ button:focus {
 }
 
 /* UTILITY CLASSES (Mimicking Tailwind for efficiency) */
-.animate-in { animation: fadeIn 0.5s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.animate-in { animation-duration: 500ms; animation-fill-mode: both; }
+.fade-in { animation-name: fadeIn; }
+.slide-in-from-right { animation-name: slideInFromRight; }
+.ease-out { animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideInFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes zoomIn95 { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+.zoom-in-95 { animation-name: zoomIn95; }
+.duration-300 { animation-duration: 300ms; }
 
 /* Spacing */
 .p-0 { padding: 0; }
@@ -159,12 +167,23 @@ button:focus {
 .mt-6 { margin-top: 1.5rem; }
 .mt-10 { margin-top: 2.5rem; }
 
+.bg-panel-tint { background-color: #F4F7FF; }
+.shadow-premium { box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05); }
+.rounded-4xl { border-radius: 2.5rem; }
+.rounded-5xl { border-radius: 3rem; }
+.rounded-32 { border-radius: 32px; }
+.rounded-40 { border-radius: 40px; }
 /* Layout & Sizing Utilities */
 .w-full { width: 100%; }
 .w-fit { width: fit-content; }
 .relative { position: relative; }
 .absolute { position: absolute; }
+.fixed { position: fixed; }
 .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.backdrop-blur-2xl { backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); }
+.backdrop-blur-md { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.backdrop-blur-sm { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.inset-x-0 { left: 0; right: 0; }
 .inset-x-0 { left: 0; right: 0; }
 .inset-y-0 { top: 0; bottom: 0; }
 .inset-x-1\.5 { left: 6px; right: 6px; }
@@ -177,6 +196,7 @@ button:focus {
 .z-20 { z-index: 20; }
 .z-30 { z-index: 30; }
 .z-50 { z-index: 50; }
+.z-100 { z-index: 100; }
 .h-full { height: 100%; }
 .h-8 { height: 2rem; }
 .h-10 { height: 2.5rem; }
@@ -188,8 +208,10 @@ button:focus {
 .w-12 { width: 3rem; }
 .w-14 { width: 3.5rem; }
 .max-w-sm { max-width: 24rem; }
+.max-w-400 { max-width: 400px; }
 .max-w-5xl { max-width: 64rem; }
 .max-w-6xl { max-width: 72rem; }
+.max-h-90vh { max-height: 90vh; }
 
 /* Flex & Grid Utilities */
 .flex { display: flex; }
@@ -219,6 +241,7 @@ button:focus {
 .grid { display: grid; }
 .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
 .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 .col-span-2 { grid-column: span 2 / span 2; }
 .col-span-3 { grid-column: span 3 / span 3; }
@@ -276,6 +299,11 @@ button:focus {
 .bg-slate-100 { background-color: var(--slate-100); }
 .bg-slate-800 { background-color: var(--slate-800); }
 .bg-slate-900 { background-color: var(--slate-900); }
+.bg-slate-900\/20 { background-color: rgba(15, 23, 42, 0.20); }
+.bg-white\/50 { background-color: rgba(255, 255, 255, 0.5); }
+.bg-white\/80 { background-color: rgba(255, 255, 255, 0.8); }
+.bg-\[\#EEF3FF\] { background-color: #EEF3FF; }
+.bg-\[\#EEF3FF\]\/60 { background-color: rgba(238, 243, 255, 0.6); }
 .bg-emerald-50 { background-color: var(--emerald-50); }
 .bg-emerald-500 { background-color: var(--emerald-500); }
 .bg-rose-50 { background-color: var(--rose-50); }
@@ -305,6 +333,8 @@ button:focus {
 .rounded-lg { border-radius: 0.5rem; }
 .rounded-xl { border-radius: 1rem; }
 .rounded-2xl { border-radius: 1.5rem; }
+.rounded-3xl { border-radius: 2rem; }
+.rounded-l-\[40px\] { border-top-left-radius: 40px; border-bottom-left-radius: 40px; }
 .rounded-full { border-radius: 9999px; }
 
 /* Shadow */
@@ -367,6 +397,9 @@ button:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--slate-300);
 }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Animations */
 .animate-pulse {
