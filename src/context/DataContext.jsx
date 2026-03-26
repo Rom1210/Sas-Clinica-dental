@@ -319,6 +319,7 @@ export const DataProvider = ({ children }) => {
         full_name: doctor.name,
         calendar_color: doctor.color,
         is_specialist: doctor.isSpecialist,
+        specialty: doctor.specialty,
         status: (doctor.status || 'active').toLowerCase(),
         organization_id: activeOrgId 
       }])
@@ -340,6 +341,7 @@ export const DataProvider = ({ children }) => {
         full_name: doctor.name,
         calendar_color: doctor.color,
         is_specialist: doctor.isSpecialist,
+        specialty: doctor.specialty,
         status: (doctor.status || 'active').toLowerCase()
       })
       .eq('id', doctor.id)

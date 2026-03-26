@@ -5,7 +5,7 @@ import { useData } from '../../context/DataContext';
 import AppointmentModal from './AppointmentModal';
 
 const Scheduler = () => {
-  const { appointments, addAppointment, doctors } = useData();
+  const { appointments, addAppointment, doctors, consultations, payments, patients } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -76,7 +76,21 @@ const Scheduler = () => {
   // 5. Successors Data (Calculated from dependencies)
 
   const getAppointmentFast = (dateStr, time) => {
-     return (appointments || []).find(app => (app.date === dateStr && app.blocks?.includes(time))) || null;
+     let filtered = appointments || [];
+     
+     if (filterType === 'Odontólogo general') {
+       filtered = filtered.filter(app => {
+         const doc = (doctors || []).find(d => d.id === app.doctor_id || d.id === app.doctorId);
+         return doc && !doc.is_specialist;
+       });
+     } else if (filterType === 'Especialista') {
+       filtered = filtered.filter(app => {
+         const doc = (doctors || []).find(d => d.id === app.doctor_id || d.id === app.doctorId);
+         return doc && doc.is_specialist;
+       });
+     }
+
+     return filtered.find(app => (app.date === dateStr && app.blocks?.includes(time))) || null;
   };
 
   const contiguousBlocks = useMemo(() => {
@@ -635,9 +649,27 @@ const Scheduler = () => {
                 }}>
                   <User size={17} />
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#475569' }}>
-                  {doctors.find(d => d.id === viewingAppointment.doctorId)?.name || viewingAppointment.doctorName || 'Profesional'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#475569' }}>
+                    {doctors.find(d => d.id === (viewingAppointment.doctor_id || viewingAppointment.doctorId))?.name || viewingAppointment.doctorName || 'Profesional'}
+                  </span>
+                  {(() => {
+                    const doc = doctors.find(d => d.id === (viewingAppointment.doctor_id || viewingAppointment.doctorId));
+                    if (!doc) return null;
+                    const isSpec = doc.is_specialist;
+                    return (
+                      <span style={{
+                        fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        padding: '2px 8px', borderRadius: '8px',
+                        background: isSpec ? '#f5f3ff' : '#eff6ff',
+                        color: isSpec ? '#7c3aed' : '#2563eb',
+                        border: `1px solid ${isSpec ? '#ddd6fe' : '#dbeafe'}`
+                      }}>
+                        {isSpec ? 'Especialista' : 'General'}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
@@ -653,30 +685,86 @@ const Scheduler = () => {
                 fontWeight: 500,
                 lineHeight: 1.5,
               }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: '#94A3B8', textTransform: 'uppercase', marginBottom: 4 }}>Detalles del Procedimiento</div>
                 {viewingAppointment.notes}
               </div>
             )}
 
-            {/* Close Button */}
-            <button
-              onClick={() => setViewingAppointment(null)}
-              style={{
-                width: '100%', padding: '16px 0',
-                background: '#0F172A', color: '#FFFFFF',
-                border: 'none', borderRadius: 16,
-                fontSize: 11, fontWeight: 900,
-                letterSpacing: '0.15em', textTransform: 'uppercase',
-                cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(15,23,42,0.25)',
-                transition: 'background 0.15s, transform 0.1s',
-              }}
-              onMouseOver={e => e.currentTarget.style.background = '#1E293B'}
-              onMouseOut={e => e.currentTarget.style.background = '#0F172A'}
-              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              Cerrar Detalles
-            </button>
+            {/* Patient Balance / Solvency */}
+            {(() => {
+                const pId = viewingAppointment.patient_id || viewingAppointment.patientId;
+                const pCons = (consultations || []).filter(c => c.patient_id === pId);
+                const pPays = (payments || []).filter(p => p.patient_id === pId);
+                const totalDue = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
+                const totalPaid = pPays.reduce((sum, p) => sum + (p.amount || 0), 0);
+                const balance = totalDue - totalPaid;
+
+                if (balance <= 0) return null;
+
+                return (
+                  <div style={{
+                    padding: '12px 16px',
+                    background: '#FEF2F2',
+                    borderRadius: 14,
+                    border: '1px solid #FEE2E2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <AlertCircle size={16} className="text-rose-500" />
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#991B1B', textTransform: 'uppercase' }}>Pendiente</span>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: '#B91C1C' }}>
+                      ${balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+            })()}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  const pId = viewingAppointment.patient_id || viewingAppointment.patientId;
+                  setViewingAppointment(null);
+                  navigate(`/pacientes/${pId}`);
+                }}
+                style={{
+                  flex: 1, padding: '16px 0',
+                  background: '#F1F5F9', color: '#475569',
+                  border: 'none', borderRadius: 16,
+                  fontSize: 11, fontWeight: 900,
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#E2E8F0'}
+                onMouseOut={e => e.currentTarget.style.background = '#F1F5F9'}
+              >
+                Ver Perfil
+              </button>
+              
+              <button
+                onClick={() => setViewingAppointment(null)}
+                style={{
+                  flex: 2, padding: '16px 0',
+                  background: '#0F172A', color: '#FFFFFF',
+                  border: 'none', borderRadius: 16,
+                  fontSize: 11, fontWeight: 900,
+                  letterSpacing: '0.15em', textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 20px rgba(15,23,42,0.25)',
+                  transition: 'background 0.15s, transform 0.1s',
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#1E293B'}
+                onMouseOut={e => e.currentTarget.style.background = '#0F172A'}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Cerrar Detalles
+              </button>
+            </div>
           </div>
 
           {/* Keyframe animations injected via style tag */}

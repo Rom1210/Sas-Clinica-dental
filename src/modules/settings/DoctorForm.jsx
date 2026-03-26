@@ -8,7 +8,7 @@ import { useData } from '../../context/DataContext';
 // ── Lista de especialidades (Simplificada) ────────────────────────
 const SPECIALTIES = [
   'Odontólogo General',
-  'Especialista',
+  'Odontólogo Especialista',
 ];
 
 // ── SpecialtyAutocomplete Component ───────────────────────────────
@@ -65,7 +65,7 @@ const SpecialtyAutocomplete = ({ value, onChange }) => {
         <Stethoscope size={15} style={{ color: open ? '#3b82f6' : '#94a3b8', flexShrink: 0, transition: 'color 0.15s' }} />
         <input
           type="text"
-          placeholder="Escriba o seleccione especialidad..."
+          placeholder="Seleccione especialidad"
           style={{
             flex: 1, background: 'transparent',
             border: 'none', outline: 'none',
@@ -130,9 +130,9 @@ const DoctorForm = () => {
     
     const [formData, setFormData] = useState({
         name: '',
-        category: 'Odontólogo General',
+        category: '',
         color: '#3b82f6',
-        status: 'Activo'
+        status: 'active'
     });
 
     const isEditing = !!id;
@@ -162,7 +162,7 @@ const DoctorForm = () => {
             ...formData,
             isSpecialist: isSp,
             specialty: formData.category,
-            id: isEditing ? parseInt(id) : undefined
+            id: isEditing ? id : undefined
         };
 
         if (isEditing) {
@@ -276,8 +276,8 @@ const DoctorForm = () => {
                                 value={formData.status} 
                                 onChange={(e) => setFormData({...formData, status: e.target.value})}
                             >
-                                <option value="Activo">Estado: Activo</option>
-                                <option value="Inactivo">Estado: Inactivo</option>
+                                <option value="active">Estado: Activo</option>
+                                <option value="inactive">Estado: Inactivo</option>
                             </select>
                             <ChevronDown size={15} style={{ position: 'absolute', right: '0.875rem', color: '#94a3b8', pointerEvents: 'none' }} />
                         </div>

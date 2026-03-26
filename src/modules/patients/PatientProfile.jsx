@@ -8,7 +8,7 @@ import Odontogram from './Odontogram';
 const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { patients, consultations: allConsultations } = useData();
+  const { patients, consultations: allConsultations, payments: allPayments, appointments: allAppointments } = useData();
   
   // Support both prop-based and route-based patient loading
   const [patient, setPatient] = useState(propPatient);
@@ -39,6 +39,68 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       setPatientConsultations(filtered);
     }
   }, [patient, allConsultations]);
+
+  // Unified financial history logic
+  const financialHistory = React.useMemo(() => {
+    if (!patient) return [];
+    
+    // 1. Get Consultations as "Cargos"
+    const cons = allConsultations
+      .filter(c => c.patient_id === patient.id)
+      .map(c => ({
+        id: `cons-${c.id}`,
+        date: c.created_at,
+        label: c.treatment_summary || 'Consulta Clínica',
+        description: c.doctor?.full_name || 'Especialista',
+        amount: c.amount || 0,
+        type: 'charge',
+        status: 'Completada'
+      }));
+
+    // 2. Get Payments as "Abonos"
+    const pays = allPayments
+      .filter(p => p.patient_id === patient.id)
+      .map(p => ({
+        id: `pay-${p.id}`,
+        date: p.created_at,
+        label: `Pago (${p.payment_method})`,
+        description: p.notes || 'Abono a cuenta',
+        amount: p.amount || 0,
+        type: 'credit',
+        status: 'Pagado'
+      }));
+
+    // 3. Get Appointments as "Próximas/Activas"
+    const now = new Date();
+    const apps = allAppointments
+      .filter(a => a.patient_id === patient.id)
+      .map(a => ({
+        id: `app-${a.id}`,
+        date: a.starts_at || a.start_at,
+        label: a.notes?.replace('Servicios: ', '') || 'Cita Programada',
+        description: a.doctorName || 'Doctor',
+        amount: 0,
+        type: 'appointment',
+        status: new Date(a.starts_at || a.start_at) < now ? 'Realizada' : 'Activa'
+      }));
+
+    return [...cons, ...pays, ...apps].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [patient, allConsultations, allPayments, allAppointments]);
+
+  const debtSummary = React.useMemo(() => {
+    if (!patient) return { totalDue: 0, totalPaid: 0, balance: 0 };
+    const totalDue = allConsultations
+      .filter(c => c.patient_id === patient.id)
+      .reduce((sum, c) => sum + (c.amount || 0), 0);
+    const totalPaid = allPayments
+      .filter(p => p.patient_id === patient.id)
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    return {
+      totalDue,
+      totalPaid,
+      balance: totalDue - totalPaid
+    };
+  }, [patient, allConsultations, allPayments]);
 
   const onBack = propOnBack || (() => navigate('/patients'));
   const [activeTab, setActiveTab] = useState('General');
@@ -419,14 +481,88 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
         )}
 
         {activeTab === 'Historia de pago' && (
-          <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+          <div className="flex flex-col gap-8 animate-in fade-in duration-300">
             <h2 className="text-2xl font-bold text-slate-800">Historia de Pago</h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 flex flex-col items-center justify-center gap-3 text-center mt-2">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-2">
-                <CheckCircle2 size={32} />
+            
+            {/* Quick Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
+                <span className={`text-2xl font-black ${debtSummary.balance > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  ${debtSummary.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                </span>
+                <span className="text-xs text-slate-500 font-medium">{debtSummary.balance > 0 ? 'No solvente' : 'Al corriente'}</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-800">Finanzas al corriente</h3>
-              <p className="text-slate-500 text-sm max-w-sm">Este paciente no tiene deudas pendientes. Su historial de transacciones se mostrará aquí cuando se realicen pagos futuros.</p>
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Facturado</span>
+                <span className="text-2xl font-black text-slate-800">
+                  ${debtSummary.totalDue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pagado</span>
+                <span className="text-2xl font-black text-emerald-500">
+                  ${debtSummary.totalPaid.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Detailed Transaction List */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                 <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Movimientos de Cuenta</h3>
+                 <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">{financialHistory.length} REGISTROS</span>
+              </div>
+              
+              <div className="flex flex-col">
+                {financialHistory.length === 0 ? (
+                  <div className="p-20 flex flex-col items-center gap-3 text-center">
+                    <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center">
+                      <Clock size={32} />
+                    </div>
+                    <p className="text-slate-400 font-bold text-sm">No se encontraron movimientos registrados.</p>
+                  </div>
+                ) : (
+                  financialHistory.map((item, idx) => (
+                    <div key={item.id} className={`p-5 flex items-center justify-between border-b border-slate-50 last:border-none hover:bg-slate-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          item.type === 'charge' ? 'bg-rose-50 text-rose-500' : 
+                          item.type === 'credit' ? 'bg-emerald-50 text-emerald-500' : 
+                          'bg-primary/5 text-primary'
+                        }`}>
+                          {item.type === 'charge' ? <FileText size={18} /> : item.type === 'credit' ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-tight">
+                            {new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          <span className="text-sm font-bold text-slate-800">{item.label}</span>
+                          <span className="text-[11px] text-slate-500 font-medium">{item.description}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`text-base font-black ${
+                          item.type === 'charge' ? 'text-slate-800' : 
+                          item.type === 'credit' ? 'text-emerald-600' : 
+                          'text-slate-400'
+                        }`}>
+                          {item.type === 'credit' ? '+' : item.type === 'charge' ? '' : ''}
+                          {item.amount > 0 ? `$${item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}` : '--'}
+                        </span>
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                          item.status === 'Activa' ? 'bg-primary text-white animate-pulse' :
+                          item.status === 'Pagado' ? 'bg-emerald-50 text-emerald-600' :
+                          'bg-slate-100 text-slate-500'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
