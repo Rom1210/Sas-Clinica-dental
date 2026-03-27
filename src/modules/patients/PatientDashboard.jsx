@@ -125,9 +125,9 @@ const PatientDashboard = () => {
               {/* Col 5: Saldo & Acciones */}
               <div className="col-span-2 flex items-center justify-between gap-2">
                 <div className="flex items-center justify-between flex-1">
-                  <span className="text-sm font-black text-slate-900 w-16">
+                  <span className="text-sm font-black w-24 text-right">
                     {patient.debt > 0 ? (
-                      <span className="text-rose-600">-${patient.debt}</span>
+                      <span className="text-rose-600">-${patient.debt.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
                     ) : (
                       <span className="text-emerald-600">$0.00</span>
                     )}

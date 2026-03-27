@@ -39,27 +39,8 @@ const FinanceModule = () => {
   
   const totalEgresos = useMemo(() => expenses.reduce((acc, e) => acc + e.amount, 0), [expenses]);
   
-  // Patient Financial Analysis
-  const patientFinancials = useMemo(() => {
-    // Use allPatients (includes archived) so financial history persists after soft-delete
-    return patients.map(p => {
-      const patientConsults = consultations.filter(c => c.patient_id === p.id);
-      const patientPays = payments.filter(pay => pay.patient_id === p.id);
-      
-      const totalDue = patientConsults.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
-      const totalPaid = patientPays.reduce((sum, pay) => 
-        sum + (pay.currency === 'USD' ? parseFloat(pay.amount) : parseFloat(pay.amount) / exchangeRate), 0);
-      
-      const balance = totalDue - totalPaid;
-      return { 
-        ...p, 
-        name: p.name,
-        totalPaid, 
-        balance,
-        paymentCount: patientPays.length
-      };
-    });
-  }, [patients, consultations, payments, exchangeRate]);
+  // Patient Financial Analysis - Use global state from DataContext
+  const patientFinancials = patients;
 
   const stats = [
     { label: 'Cuentas por Cobrar', value: globalStats.totalCuentasPorCobrar, icon: <TrendingDown />, color: 'text-rose-500', bg: 'bg-rose-50' },

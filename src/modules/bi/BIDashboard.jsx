@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   DollarSign, Users, BarChart3, TrendingUp, TrendingDown,
-  ChevronDown, Send, Loader2
+  ChevronDown, Send, Loader2, Clock, Calendar
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -103,7 +103,7 @@ const CustomTooltip = ({ active, payload, label, formatPrice }) => {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const BIDashboard = () => {
-  const { stats, invoices, loading } = useData();
+  const { stats, invoices, appointments, loading } = useData();
   const { formatPrice } = useSettings();
 
   const now = new Date();
@@ -199,6 +199,15 @@ const BIDashboard = () => {
     }
     return -1;
   }, [viewMode, selectedMonth, selectedYear, selectedWeek]);
+
+  const upcomingAppointments = useMemo(() => {
+    if (!appointments) return [];
+    const now = new Date();
+    return [...appointments]
+      .filter(a => new Date(a.starts_at || a.start_at) > now)
+      .sort((a, b) => new Date(a.starts_at || a.start_at) - new Date(b.starts_at || b.start_at))
+      .slice(0, 3);
+  }, [appointments]);
 
   const kpis = [
     {
@@ -439,30 +448,35 @@ const BIDashboard = () => {
             </div>
           </div>
 
-          {/* Specialty Distribution */}
+          {/* Upcoming Appointments */}
           <div style={{
             background: 'white', border: '1px solid #E2E8F0', borderRadius: '1rem',
             boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: '1.25rem 1.5rem',
           }}>
             <h4 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>
-              Por Especialidad
+              PRÓXIMAS CITAS
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              {stats.specialtyData.length > 0 ? stats.specialtyData.map((spec, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.775rem', fontWeight: 600, color: '#334155' }}>{spec.name}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: '80px', height: '6px', background: '#F1F5F9', borderRadius: '999px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${spec.value}%`, background: '#2563EB', borderRadius: '999px', transition: 'width 1s ease' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {upcomingAppointments.length > 0 ? upcomingAppointments.map((app, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#F8FAFC', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Calendar size={16} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {app.patient?.full_name || app.patient?.first_name || 'Paciente'}
                     </div>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#059669', width: '32px', textAlign: 'right' }}>
-                      {spec.value}%
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+                      <Clock size={10} style={{ color: '#2563EB' }} />
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#64748B' }}>
+                        {new Date(app.starts_at || app.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {app.doctor?.full_name?.split(' ')[0] || 'Dr.'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )) : (
-                <div style={{ textAlign: 'center', color: '#CBD5E1', fontSize: '0.7rem', fontWeight: 700, padding: '1rem 0' }}>
-                  Sin datos de consulta
+                <div style={{ textAlign: 'center', padding: '1rem 0', color: '#CBD5E1', fontSize: '0.7rem', fontWeight: 700 }}>
+                  ✕ Sin citas programadas
                 </div>
               )}
             </div>

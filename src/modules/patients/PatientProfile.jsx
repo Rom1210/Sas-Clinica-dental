@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { ArrowLeft, Search, Plus, Filter, Info, ChevronLeft, ChevronRight, CheckCircle2, FileText, User, AlertCircle, Activity, ClipboardList, Clock, Pencil, Download, ChevronDown, Calendar } from 'lucide-react';
 import Odontogram from './Odontogram';
@@ -8,7 +8,8 @@ import Odontogram from './Odontogram';
 const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { patients, consultations: allConsultations, payments: allPayments, appointments: allAppointments } = useData();
+  const location = useLocation();
+  const { patients, consultations: allConsultations, payments: allPayments, appointments: allAppointments, doctors } = useData();
   
   // Support both prop-based and route-based patient loading
   const [patient, setPatient] = useState(propPatient);
@@ -39,6 +40,18 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       setPatientConsultations(filtered);
     }
   }, [patient, allConsultations]);
+  // Helper to parse 'Total: $XX' from appointment notes
+  const getAppointmentCost = (notes) => {
+    if (!notes || !notes.includes('Total: $')) return 0;
+    try {
+      const parts = notes.split('Total: $');
+      if (parts.length > 1) {
+        const amountStr = parts[1].trim().split(' ')[0].replace(',', '');
+        return parseFloat(amountStr) || 0;
+      }
+    } catch (e) {}
+    return 0;
+  };
 
   // Unified financial history logic
   const financialHistory = React.useMemo(() => {
@@ -79,7 +92,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
         date: a.starts_at || a.start_at,
         label: a.notes?.replace('Servicios: ', '') || 'Cita Programada',
         description: a.doctorName || 'Doctor',
-        amount: 0,
+        amount: getAppointmentCost(a.notes),
         type: 'appointment',
         status: new Date(a.starts_at || a.start_at) < now ? 'Realizada' : 'Activa'
       }));
@@ -89,22 +102,38 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
 
   const debtSummary = React.useMemo(() => {
     if (!patient) return { totalDue: 0, totalPaid: 0, balance: 0 };
-    const totalDue = allConsultations
+    
+    const totalDueCons = allConsultations
       .filter(c => c.patient_id === patient.id)
       .reduce((sum, c) => sum + (c.amount || 0), 0);
+      
+    const now = new Date();
+    const totalDueApps = allAppointments
+      .filter(a => a.patient_id === patient.id && new Date(a.starts_at || a.start_at) <= now)
+      .reduce((sum, a) => sum + getAppointmentCost(a.notes), 0);
+      
     const totalPaid = allPayments
       .filter(p => p.patient_id === patient.id)
       .reduce((sum, p) => sum + (p.amount || 0), 0);
+      
+    const totalDue = totalDueCons + totalDueApps;
+    
     return {
       totalDue,
       totalPaid,
       balance: totalDue - totalPaid
     };
-  }, [patient, allConsultations, allPayments]);
+  }, [patient, allConsultations, allPayments, allAppointments]);
 
   const onBack = propOnBack || (() => navigate('/patients'));
   const [activeTab, setActiveTab] = useState('General');
   const [showNewConsultModal, setShowNewConsultModal] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
 
   const [toastMessage, setToastMessage] = useState(null);
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -146,7 +175,222 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
     }
   }, [patient]);
 
-  const tabs = ['General', 'Historia médica', 'Historia de pago'];
+  const tabs = ['General', 'Perfil', 'Historia médica', 'Historia de pago'];
+
+
+  const PatientHistoryView = () => {
+    const historicalItems = React.useMemo(() => {
+      const cons = allConsultations
+        .filter(c => c.patient_id === patient.id)
+        .map(c => {
+          const docObj = doctors.find(d => d.id === c.doctor_id);
+          const docColor = docObj?.color || '#94a3b8';
+
+          return {
+            id: `c-${c.id}`,
+            date: c.created_at,
+            type: 'Consulta',
+            title: c.treatment_summary || 'Consulta General',
+            doctor: c.doctor?.full_name || 'Especialista',
+            doctorColor: docColor,
+            notes: c.reason || '',
+            amount: c.amount,
+            icon: <FileText size={18} />
+          };
+        });
+
+      const apps = allAppointments
+        .filter(a => a.patient_id === patient.id && new Date(a.starts_at || a.start_at) < new Date())
+        .map(a => {
+          const notes = a.notes || '';
+          let title = 'Cita Programada';
+          if (notes.startsWith('Servicios:')) {
+            title = notes.split('|')[0].replace('Servicios:', '').trim();
+          }
+          const docObj = doctors.find(d => d.id === a.doctor_id);
+          const docColor = docObj?.color || '#94a3b8';
+
+          return {
+            id: `a-${a.id}`,
+            date: a.starts_at || a.start_at,
+            type: 'Cita Pasada',
+            title: title,
+            doctor: a.doctorName || 'Profesional',
+            doctorColor: docColor,
+            notes: '',
+            amount: 0,
+            icon: <Calendar size={18} />,
+            originalId: a.id
+          };
+        });
+
+      return [...cons, ...apps].sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [patient, allConsultations, allAppointments]);
+
+    const insightsData = React.useMemo(() => {
+      const total = historicalItems.length;
+      const last = historicalItems[0];
+      const specialists = [...new Set(historicalItems.map(h => h.doctor))].length;
+      
+      const nextApp = allAppointments
+        .filter(a => a.patient_id === patient.id && new Date(a.starts_at || a.start_at) >= new Date())
+        .sort((a, b) => new Date(a.starts_at || a.start_at) - new Date(b.starts_at || b.start_at))[0];
+        
+      return { total, last, specialists, nextApp };
+    }, [historicalItems, allAppointments, patient]);
+
+    return (
+      <div className="flex flex-col gap-10 animate-in fade-in duration-500 max-w-5xl mx-auto py-4">
+        {/* Unified Clinical Header - Premium Glassmode (Light Glassmorphism) */}
+        <div className="relative overflow-hidden bg-white/60 backdrop-blur-3xl rounded-[2.5rem] p-10 shadow-[0_25px_80px_rgba(0,0,0,0.06),0_0_1px_rgba(0,0,0,0.1)] flex flex-col md:flex-row items-center justify-between gap-10 border border-white/50">
+           {/* Decorative elements - softer for light mode */}
+           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full -mr-32 -mt-32 blur-[120px] opacity-40"></div>
+           <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full -ml-20 -mb-20 blur-[100px] opacity-30"></div>
+
+           <div className="flex items-center gap-10 relative z-10 w-full md:w-auto">
+              <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center text-primary shadow-[0_15px_35px_rgba(37,99,235,0.12)] border border-white/80 scale-110">
+                 <Activity size={44} strokeWidth={2.5} />
+              </div>
+              <div className="flex flex-col gap-3">
+                 <div className="flex items-center gap-4">
+                    <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.25em] drop-shadow-sm">Estado Clínico Integral</h3>
+                    <div className="h-px w-10 bg-primary/10"></div>
+                    <div className="flex items-center gap-2 py-1.5 px-4 bg-emerald-500/10 rounded-full border border-emerald-500/15 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]"></span>
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none">Activo</span>
+                    </div>
+                 </div>
+                 
+                 {historicalItems.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                        <p className="text-3xl font-black text-slate-900 leading-none tracking-tight">
+                           {historicalItems[0].title.split(',')[0]}
+                        </p>
+                        <p className="text-slate-500 text-sm font-bold flex items-center gap-2">
+                           Último trámite: <span className="text-slate-900">{new Date(historicalItems[0].date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span> con <span className="text-primary font-black uppercase text-[10px] tracking-wider">Dr. {historicalItems[0].doctor.replace('Dr. ', '').split(' ')[0]}</span>
+                        </p>
+                    </div>
+                 ) : (
+                    <p className="text-2xl font-black text-slate-400 italic">Sin registros registrados</p>
+                 )}
+
+                 {insightsData.nextApp && (
+                    <div className="flex items-center gap-3 text-[11px] font-black text-slate-700 uppercase tracking-wider bg-white/80 px-4 py-2.5 rounded-2xl border border-slate-100 shadow-sm w-fit transition-all hover:shadow-md">
+                       <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"></div>
+                       PRÓXIMA CITA: <span className="text-slate-900">{new Date(insightsData.nextApp.starts_at || insightsData.nextApp.start_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                 )}
+              </div>
+           </div>
+
+           <div className="flex items-center gap-14 relative z-10 pr-6 w-full md:w-auto justify-around md:justify-end">
+              <div className="flex flex-col items-center group transition-transform hover:scale-110">
+                 <span className="text-4xl font-black text-slate-900 leading-none">{insightsData.total}</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Visitas</span>
+              </div>
+              <div className="w-px h-12 bg-slate-100 hidden md:block"></div>
+              <div className="flex flex-col items-center group transition-transform hover:scale-110">
+                 <span className="text-4xl font-black text-slate-900 leading-none">{insightsData.specialists}</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Drs.</span>
+              </div>
+           </div>
+        </div>
+
+        {/* Premium Timeline */}
+        <div className="flex flex-col gap-6 relative px-4 md:px-8">
+          <div className="absolute left-[31px] md:left-[47px] top-0 bottom-0 w-1 bg-slate-100 rounded-full"></div>
+          
+          <h2 className="text-2xl font-black text-slate-800 ml-12 md:ml-16 mb-2">Cronología del Paciente</h2>
+
+          {historicalItems.length === 0 ? (
+            <div className="p-20 text-center bg-white rounded-3xl border border-slate-100 border-dashed text-slate-400 font-bold text-lg">
+              No hay historial clínico disponible.
+            </div>
+          ) : (
+            historicalItems.map((item, idx) => (
+              <div key={item.id} className="relative flex items-start gap-6 md:gap-10 group animate-in slide-in-from-left-4 duration-300 transition-all" style={{ animationDelay: `${idx * 50}ms` }}>
+                
+                {/* Date Side Indicator */}
+                <div className="flex flex-col items-center gap-2 z-10">
+                   <div className="flex flex-col items-center justify-center w-16 h-16 bg-white border-4 border-white shadow-md rounded-2xl group-hover:shadow-lg transition-all">
+                      <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{new Date(item.date).toLocaleDateString('es-ES', { month: 'short' })}</span>
+                      <span className="text-xl font-black text-slate-800 leading-none mt-0.5">{new Date(item.date).getDate()}</span>
+                   </div>
+                   <div className={`w-3 h-3 rounded-full border-2 border-white shadow-sm ring-4 ring-slate-50 ${item.type === 'Consulta' ? 'bg-teal-400' : 'bg-blue-400'}`}></div>
+                </div>
+
+                {/* Content Card */}
+                <div 
+                   className="flex-1 bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group-hover:shadow-xl group-hover:shadow-primary/5 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden"
+                   style={{ 
+                      borderLeft: `4px solid ${item.doctorColor || '#cbd5e1'}`, 
+                      background: `linear-gradient(to right, ${item.doctorColor || '#cbd5e1'}05, white)` 
+                   }}
+                >
+                   {/* Background Decor */}
+                   <div 
+                      className="absolute top-0 right-0 w-24 h-24 opacity-5 group-hover:opacity-10 transition-opacity" 
+                      style={{ 
+                        background: `radial-gradient(circle at top right, ${item.doctorColor}, transparent)`,
+                        borderRadius: '0 0 0 100%'
+                      }}
+                   ></div>
+                   
+                   <div className="flex gap-5 items-center">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${item.type === 'Consulta' ? 'bg-teal-50 text-teal-600' : 'bg-blue-50 text-blue-600'}`}>
+                         {item.icon}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                         <div className="flex items-center gap-2">
+                           <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${item.type === 'Consulta' ? 'bg-teal-50 text-teal-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {item.type}
+                           </span>
+                           <span className="text-[9px] font-black text-slate-300 uppercase">{new Date(item.date).getFullYear()}</span>
+                         </div>
+                         <h4 className="text-base font-bold text-slate-800 group-hover:text-primary transition-colors underline decoration-slate-100 decoration-2 underline-offset-4">{item.title}</h4>
+                         <div className="flex items-center gap-2 mt-1">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-white overflow-hidden border border-white shadow-sm" style={{ background: item.doctorColor || '#cbd5e1' }}>
+                               <User size={12} />
+                            </div>
+                            <span className="text-[11px] font-bold" style={{ color: item.doctorColor || '#64748b' }}>{item.doctor}</span>
+                            <div className="w-1 h-1 rounded-full bg-slate-300 mx-1"></div>
+                            <span className="text-[10px] text-slate-400 font-black uppercase">{new Date(item.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+                      {item.amount > 0 ? (
+                        <span className="text-xl font-black text-slate-800 tracking-tighter">${item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md">Procedimiento incluido</span>
+                      )}
+                      
+                      <div className="flex items-center gap-2">
+                        {item.originalId && (
+                           <button 
+                             onClick={() => navigate('/scheduler', { state: { highlightId: item.originalId } })}
+                             className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black transition-all border-none cursor-pointer"
+                           >
+                              VER EN AGENDA <Calendar size={10} />
+                           </button>
+                        )}
+                        <button 
+                          onClick={() => navigate(`/scheduler/appointment/${item.originalId || item.id.replace('a-', '').replace('c-', '')}`, { state: { fromHistory: true } })}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white hover:bg-black rounded-xl text-[9px] font-black transition-all border-none cursor-pointer"
+                        >
+                          VER DETALLES <ChevronRight size={10} />
+                        </button>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (!patient) return <div className="p-10 text-center font-bold text-slate-500 uppercase tracking-widest">Cargando paciente...</div>;
 
@@ -157,15 +401,14 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       <div className="flex justify-between items-center">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-semibold text-sm cursor-pointer border-none bg-transparent p-0"
+          className="flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-black text-[10px] uppercase tracking-[0.15em] cursor-pointer border border-slate-100 bg-white px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md active:scale-95 group"
         >
-          <ArrowLeft size={16} /> Volver a pacientes
+          <ArrowLeft size={14} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" /> Volver a pacientes
         </button>
-
       </div>
 
-      {/* Top Patient Info Card - Hidden in Medical History to match Image 2's clean layout */}
-      {activeTab !== 'Historia médica' && (
+      {/* Top Patient Info Card - Hidden in Medical/Ficha tabs to match clean layout */}
+      {activeTab !== 'Historia médica' && activeTab !== 'Ficha médica' && activeTab !== 'Perfil' && (
         <div className="bg-white rounded-2xl p-6 shadow-sm flex flex-col gap-6 border border-slate-100">
           <h2 className="text-xl font-bold text-slate-800">Paciente</h2>
           
@@ -343,19 +586,19 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
         )}
 
 
-        {activeTab === 'Historia médica' && (
+        {activeTab === 'Perfil' && (
           <div className="animate-in w-full max-w-6xl mx-auto px-6 py-4">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-md p-16 flex flex-col gap-10">
               
               {/* Main Header */}
               <div className="flex justify-between items-start w-full">
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-[28px] font-bold text-slate-800 leading-tight">Historia médica</h2>
-                  <p className="text-sm text-slate-400 font-medium">Información detallada y antecedentes del paciente</p>
+                  <h2 className="text-[28px] font-bold text-slate-800 leading-tight">Perfil de paciente</h2>
+                  <p className="text-sm text-slate-400 font-medium">Información clínica base y antecedentes del paciente</p>
                 </div>
                 <button className="btn bg-brand-blue hover:bg-brand-blue-hover text-white px-6 py-2.5 rounded-lg flex items-center gap-2 border-none">
                   <Download size={16}/>
-                  <span className="font-bold tracking-tight text-[13px]">DESCARGAR HISTORIA</span>
+                  <span className="font-bold tracking-tight text-[13px]">DESCARGAR PERFIL</span>
                 </button>
               </div>
 
@@ -480,30 +723,41 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
           </div>
         )}
 
+        {activeTab === 'Historia médica' && (
+          <PatientHistoryView />
+        )}
+
         {activeTab === 'Historia de pago' && (
           <div className="flex flex-col gap-8 animate-in fade-in duration-300">
             <h2 className="text-2xl font-bold text-slate-800">Historia de Pago</h2>
             
             {/* Quick Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
-                <span className={`text-2xl font-black ${debtSummary.balance > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1 relative overflow-hidden group hover:shadow-xl transition-all">
+                <div className={`absolute top-0 right-0 w-2 h-full ${debtSummary.balance > 0 ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative z-10">Saldo Pendiente</span>
+                <span className={`text-3xl font-black relative z-10 ${debtSummary.balance > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
                   ${debtSummary.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-xs text-slate-500 font-medium">{debtSummary.balance > 0 ? 'No solvente' : 'Al corriente'}</span>
+                <span className={`text-[10px] font-black uppercase tracking-tighter relative z-10 ${debtSummary.balance > 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                   {debtSummary.balance > 0 ? '• Acción requerida' : '• Estado solvente'}
+                </span>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Facturado</span>
-                <span className="text-2xl font-black text-slate-800">
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1 relative overflow-hidden group hover:shadow-xl transition-all">
+                <div className="absolute top-0 right-0 w-2 h-full bg-slate-800"></div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative z-10">Total Facturado</span>
+                <span className="text-3xl font-black text-slate-800 relative z-10">
                   ${debtSummary.totalDue.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                 </span>
+                <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter relative z-10">Historial acumulado</span>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pagado</span>
-                <span className="text-2xl font-black text-emerald-500">
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1 relative overflow-hidden group hover:shadow-xl transition-all">
+                <div className="absolute top-0 right-0 w-2 h-full bg-emerald-400"></div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative z-10">Total Pagado</span>
+                <span className="text-3xl font-black text-emerald-500 relative z-10">
                   ${debtSummary.totalPaid.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                 </span>
+                <span className="text-[10px] font-black text-emerald-300 uppercase tracking-tighter relative z-10">Capital recuperado</span>
               </div>
             </div>
 

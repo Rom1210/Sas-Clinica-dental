@@ -109,7 +109,10 @@ const ServiceModal = ({ onClose, onAdd, catalog }) => {
       name: picked?.name || query.trim(),
       price: parseFloat(price) || 0,
     });
-    onClose();
+    // Limpiar campos para la siguiente adición en lugar de cerrar el modal
+    setPicked(null);
+    setQuery('');
+    setPrice('');
   };
 
   return (
@@ -130,7 +133,7 @@ const ServiceModal = ({ onClose, onAdd, catalog }) => {
         <div style={{ padding: '2rem 2rem 1.25rem', borderBottom: `1px solid ${T.slate100}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h2 style={{ fontSize: '1.375rem', fontWeight: 900, color: T.slate900, letterSpacing: '-0.03em', margin: 0 }}>
-              Añadir servicio
+              Añadir servicios
             </h2>
             <EyebrowLabel>Catálogo del sistema</EyebrowLabel>
           </div>
@@ -233,20 +236,20 @@ const ServiceModal = ({ onClose, onAdd, catalog }) => {
                 letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
               }}
             >
-              Cancelar
+              Finalizar
             </button>
             <button
               onClick={handleAdd}
               disabled={!query.trim()}
               style={{
-                flex: 1, padding: '13px 0', borderRadius: 999, border: 'none',
+                flex: 2, padding: '13px 0', borderRadius: 999, border: 'none',
                 background: T.primary, color: '#fff', fontWeight: 800, fontSize: 12,
                 letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
                 boxShadow: '0 6px 20px rgba(37,99,235,0.28)',
                 opacity: !query.trim() ? 0.5 : 1,
               }}
             >
-              + Añadir servicio
+              + Añadir servicios
             </button>
           </div>
         </div>
@@ -340,30 +343,32 @@ const DoctorSelector = ({ doctors, selected, onSelect }) => {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
-                  background: selected?.id === doc.id ? '#EFF6FF' : 'transparent',
+                  background: selected?.id === doc.id ? `${doc.color || T.primary}10` : 'transparent',
                   marginBottom: 2,
                 }}
                 onMouseEnter={e => { if (selected?.id !== doc.id) e.currentTarget.style.background = T.slate50; }}
-                onMouseLeave={e => { e.currentTarget.style.background = selected?.id === doc.id ? '#EFF6FF' : 'transparent'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = selected?.id === doc.id ? `${doc.color || T.primary}10` : 'transparent'; }}
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  background: selected?.id === doc.id ? '#DBEAFE' : T.slate100,
+                  background: doc.color || T.slate100,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontWeight: 900, fontSize: 13,
-                  color: selected?.id === doc.id ? T.primary : T.slate500,
+                  color: '#fff',
+                  border: `2px solid #fff`,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}>
                   {doc.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: selected?.id === doc.id ? T.primary : T.slate800 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: selected?.id === doc.id ? (doc.color || T.primary) : T.slate800 }}>
                     {doc.name}
                   </div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: T.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     {doc.isSpecialist ? 'Especialista' : 'Odontólogo General'}
                   </div>
                 </div>
-                {selected?.id === doc.id && <Check size={16} style={{ color: T.primary }} />}
+                {selected?.id === doc.id && <Check size={16} style={{ color: doc.color || T.primary }} />}
               </div>
             ))}
           </div>
@@ -389,26 +394,14 @@ const NewAppointmentFlow = () => {
 
   /* Catalog resolution */
   const catalog = useMemo(() => {
-    // Start with services from database (those have custom prices)
-    const base = [...dbServices];
+    // Solo mostrar los servicios guardados en la base de datos (los "reales")
+    // que pertenecen a la organización actual.
+    if (dbServices && dbServices.length > 0) {
+      return dbServices;
+    }
     
-    // Identificadores de nombres en la DB para evitar duplicados
-    const dbNames = new Set(dbServices.map(s => s.name.toLowerCase()));
-
-    // Añadir opciones del catálogo general que no estén en la DB
-    const suggestions = SERVICE_OPTIONS
-      .filter(name => !dbNames.has(name.toLowerCase()))
-      .map((name, idx) => ({
-        id: `suggestion-${idx}`,
-        name: name,
-        price: 0,
-        isSuggestion: true
-      }));
-
-    const fullCatalog = [...base, ...suggestions];
-    
-    // Si realmente no hay nada (muy raro), caer en MOCK_SERVICES
-    return fullCatalog.length > 0 ? fullCatalog : MOCK_SERVICES;
+    // Si realmente no hay nada en la DB, mostrar mocks para evitar que se vea vacío durante desarrollo inicial
+    return MOCK_SERVICES;
   }, [dbServices]);
 
   const availableDoctors = useMemo(() => {
@@ -423,6 +416,7 @@ const NewAppointmentFlow = () => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [selectedDoctor,   setSelectedDoctor]   = useState(null);
   const [isModalOpen,      setIsModalOpen]       = useState(false);
+  const [errorToast,       setErrorToast]        = useState(null);
 
   const subtotal = useMemo(() => selectedServices.reduce((s, sv) => s + sv.price, 0), [selectedServices]);
 
@@ -436,6 +430,13 @@ const NewAppointmentFlow = () => {
 
   const handleGoToScheduler = () => {
     if (selectedServices.length === 0) return;
+    
+    if (!selectedDoctor) {
+      setErrorToast("Por favor, selecciona al especialista que atenderá antes de continuar.");
+      setTimeout(() => setErrorToast(null), 4000);
+      return;
+    }
+
     navigate('/scheduler', {
       state: {
         prefilledPatient: patient,
@@ -510,10 +511,20 @@ const NewAppointmentFlow = () => {
           <Card style={{ padding: '2rem' }}>
             <div style={sectionHeader}>
               <div>
-                <h2 style={{ fontSize: 17, fontWeight: 900, color: T.slate900, margin: 0, letterSpacing: '-0.02em' }}>
-                  1. Servicios a realizar
+                <h2 style={{ fontSize: 18, fontWeight: 900, color: T.slate900, margin: 0, letterSpacing: '-0.03em' }}>
+                  1. Plan de tratamiento
                 </h2>
-                <EyebrowLabel>Búsqueda rápida o selección múltiple</EyebrowLabel>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <EyebrowLabel>Configuración de servicios</EyebrowLabel>
+                  <span style={{ 
+                    fontSize: 8, fontWeight: 900, padding: '2px 8px', 
+                    background: '#EFF6FF', color: T.primary, 
+                    border: '1px solid #DBEAFE', borderRadius: 6, 
+                    letterSpacing: '0.08em', textTransform: 'uppercase' 
+                  }}>
+                    {selectedServices.length} {selectedServices.length === 1 ? 'Procedimiento' : 'Procedimientos'}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(true)}
@@ -528,7 +539,7 @@ const NewAppointmentFlow = () => {
                 onMouseEnter={e => e.currentTarget.style.background = T.primaryH}
                 onMouseLeave={e => e.currentTarget.style.background = T.primary}
               >
-                <Plus size={15} /> Añadir servicio
+                <Plus size={15} /> Añadir servicios
               </button>
             </div>
 
@@ -615,7 +626,7 @@ const NewAppointmentFlow = () => {
           {/* Resumen de cita */}
           <Card style={{ padding: '1.75rem' }}>
             <h3 style={{ fontSize: 16, fontWeight: 900, color: T.slate900, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
-              Resumen de cita
+              Resumen del plan
             </h3>
             <EyebrowLabel>Confirmación rápida del tratamiento</EyebrowLabel>
 
@@ -684,19 +695,19 @@ const NewAppointmentFlow = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
                 onClick={handleGoToScheduler}
-                disabled={selectedServices.length === 0}
+                disabled={selectedServices.length === 0 || !selectedDoctor}
                 style={{
                   width: '100%', padding: '14px 0', borderRadius: 14, border: 'none',
-                  background: selectedServices.length === 0 ? T.slate200 : T.primary,
-                  color: selectedServices.length === 0 ? T.slate400 : '#fff',
+                  background: (selectedServices.length === 0 || !selectedDoctor) ? T.slate200 : T.primary,
+                  color: (selectedServices.length === 0 || !selectedDoctor) ? T.slate400 : '#fff',
                   fontWeight: 800, fontSize: 13, letterSpacing: '0.04em',
-                  cursor: selectedServices.length === 0 ? 'not-allowed' : 'pointer',
+                  cursor: (selectedServices.length === 0 || !selectedDoctor) ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: selectedServices.length > 0 ? '0 6px 20px rgba(37,99,235,0.25)' : 'none',
+                  boxShadow: (selectedServices.length > 0 && selectedDoctor) ? '0 6px 20px rgba(37,99,235,0.25)' : 'none',
                   transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { if (selectedServices.length > 0) e.currentTarget.style.background = T.primaryH; }}
-                onMouseLeave={e => { if (selectedServices.length > 0) e.currentTarget.style.background = T.primary; }}
+                onMouseEnter={e => { if (selectedServices.length > 0 && selectedDoctor) e.currentTarget.style.background = T.primaryH; }}
+                onMouseLeave={e => { if (selectedServices.length > 0 && selectedDoctor) e.currentTarget.style.background = T.primary; }}
               >
                 Ver horarios disponibles <ArrowRight size={16} />
               </button>
@@ -724,6 +735,18 @@ const NewAppointmentFlow = () => {
           onClose={() => setIsModalOpen(false)}
           onAdd={handleAddService}
         />
+      )}
+      {/* ── NOTIFICATION TOAST ── */}
+      {errorToast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[10000] bg-slate-900/95 backdrop-blur-xl border border-white/10 p-1.5 pl-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center gap-4 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest leading-none mb-1">Error de validación</span>
+            <span className="text-sm font-bold text-white leading-tight">{errorToast}</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-500 flex items-center justify-center border border-rose-500/20">
+            <AlertCircle size={20} strokeWidth={2.5} />
+          </div>
+        </div>
       )}
     </div>
   );

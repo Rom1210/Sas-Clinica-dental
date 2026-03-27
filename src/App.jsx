@@ -33,7 +33,10 @@ import NewConsultation from './modules/consultations/NewConsultation';
 import FinanceModule from './modules/finance/FinanceModule';
 import PatientFinanceDetail from './modules/finance/PatientFinanceDetail';
 import Scheduler from './modules/scheduler/Scheduler';
+import UpcomingAppointments from './modules/scheduler/UpcomingAppointments';
+import AppointmentDetails from './modules/scheduler/AppointmentDetails';
 import BIDashboard from './modules/bi/BIDashboard';
+import StatisticsModule from './modules/statistics/StatisticsModule';
 import ControlMaster from './modules/master/ControlMaster';
 import ServiceForm from './modules/settings/ServiceForm';
 import DoctorForm from './modules/settings/DoctorForm';
@@ -71,6 +74,7 @@ const AppContent = () => {
     { id: 'scheduler', path: '/scheduler', label: 'Agenda Atómica', icon: <Calendar size={20} /> },
     { id: 'patients', path: '/patients', label: 'Pacientes', icon: <Users size={20} /> },
     { id: 'finance', path: '/finance', label: 'Finanzas (USD/VES)', icon: <CreditCard size={20} /> },
+    { id: 'statistics', path: '/statistics', label: 'Estadísticas (RCM)', icon: <BarChart3 size={20} /> },
     { id: 'settings', path: '/settings', label: 'Control Maestro', icon: <Settings size={20} /> },
   ];
 
@@ -176,6 +180,8 @@ const AppContent = () => {
             <Routes>
               <Route path="/" element={<BIDashboard />} />
               <Route path="/scheduler" element={<Scheduler />} />
+              <Route path="/scheduler/upcoming" element={<UpcomingAppointments />} />
+              <Route path="/scheduler/appointment/:id" element={<AppointmentDetails />} />
               <Route path="/patients" element={<PatientDashboard />} />
               <Route path="/pacientes/:id" element={<PatientProfile />} />
               <Route path="/pacientes/:id/agendar-cita" element={<NewAppointmentFlow />} />
@@ -183,6 +189,7 @@ const AppContent = () => {
               <Route path="/pacientes/:id/nueva-consulta" element={<NewConsultation />} />
               <Route path="/finance" element={<FinanceModule />} />
               <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
+              <Route path="/statistics" element={<StatisticsModule />} />
               <Route path="/settings" element={<ControlMaster />} />
               <Route path="/settings/new-service" element={<ServiceForm />} />
               <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
@@ -232,12 +239,14 @@ const AppContent = () => {
 
       {/* Toast Notification */}
       {toast && (
-        <div style={{
-          position: 'fixed', bottom: '2rem', right: '2rem', background: 'var(--primary)',
-          color: 'white', padding: '1rem 1.5rem', borderRadius: 'var(--radius)',
-          boxShadow: 'var(--shadow-md)', zIndex: 200
-        }}>
-          {toast}
+        <div className="fixed bottom-10 right-10 z-[10000] bg-slate-900/95 backdrop-blur-xl border border-white/10 p-1.5 pl-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex items-center gap-5 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1.5">Mensaje del sistema</span>
+            <span className="text-sm font-bold text-white leading-tight">{toast}</span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center border border-emerald-500/30">
+            <Loader2 size={24} className={toast.toLowerCase().includes('cargando') ? 'animate-spin' : ''} strokeWidth={2.5} />
+          </div>
         </div>
       )}
     </div>

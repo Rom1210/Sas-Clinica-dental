@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useSettings } from './SettingsContext';
 
 const DataContext = createContext();
 
+const MONTHS_SHORT = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
 export const DataProvider = ({ children }) => {
   const { user, activeOrgId } = useAuth();
+  const { exchangeRate } = useSettings();
   const [doctors, setDoctors] = useState([]);
   const [services, setServices] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -110,10 +114,48 @@ export const DataProvider = ({ children }) => {
         ...s,
         price: s.base_price // Mapping for UI compatibility
       })));
-      const mappedPatients = (pats || []).map(p => ({
-        ...p,
-        name: p.full_name || (p.first_name + ' ' + (p.last_name || '')).trim() || p.email || 'Paciente'
-      }));
+      // Helper to parse 'Total: $XX' from appointment notes
+      const getAppointmentCost = (notes) => {
+        if (!notes || !notes.includes('Total: $')) return 0;
+        try {
+          const parts = notes.split('Total: $');
+          if (parts.length > 1) {
+            // Take the number after the $ and before any space or end of string
+            const amountStr = parts[1].trim().split(' ')[0].replace(',', '');
+            return parseFloat(amountStr) || 0;
+          }
+        } catch (e) {}
+        return 0;
+      };
+
+      const mappedPatients = (pats || []).map(p => {
+        const pCons = (cons || []).filter(c => c.patient_id === p.id);
+        const pPays = (pays || []).filter(pay => pay.patient_id === p.id);
+        const pApps = (apps || []).filter(a => a.patient_id === p.id);
+
+        const totalDueCons = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
+        const totalPaid = pPays.reduce((sum, pay) => {
+          const amt = parseFloat(pay.amount || 0);
+          return sum + (pay.currency === 'USD' ? amt : amt / (exchangeRate || 45.50));
+        }, 0);
+        
+        // Sum costs from appointments that have already occurred
+        const now = new Date();
+        const totalDueApps = pApps.reduce((sum, a) => {
+          const isPast = new Date(a.starts_at || a.start_at) <= now;
+          return sum + (isPast ? getAppointmentCost(a.notes) : 0);
+        }, 0);
+
+        const debt = (totalDueCons + totalDueApps) - totalPaid;
+
+        return {
+          ...p,
+          name: p.full_name || (p.first_name + ' ' + (p.last_name || '')).trim() || p.email || 'Paciente',
+          debt: debt > 1 ? debt : 0, // 1 USD threshold for small deviations
+          balance: debt,
+          paymentCount: pPays.length
+        };
+      });
       setPatients(mappedPatients); // all patients (including archived)
       setExpenses(exps || []);
       
@@ -237,15 +279,10 @@ export const DataProvider = ({ children }) => {
     
     // 4. Debtors List (Caza-Deudores)
     const patientBalances = patients.map(p => {
-      const pCons = consultations.filter(c => c.patient_id === p.id);
-      const pPays = payments.filter(pay => pay.patient_id === p.id);
-      const totalDue = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
-      const totalPaid = pPays.reduce((sum, pay) => sum + (pay.amount || 0), 0);
-      const balance = totalDue - totalPaid;
+      // Use the pre-calculated balance from the patient object
       return { 
         ...p, 
-        balance, 
-        lastMovement: pCons[0]?.created_at || p.created_at 
+        lastMovement: consultations.filter(c => c.patient_id === p.id)[0]?.created_at || p.created_at 
       };
     }).filter(pf => pf.balance > 0).sort((a, b) => b.balance - a.balance);
 
@@ -272,6 +309,50 @@ export const DataProvider = ({ children }) => {
       count
     }));
 
+    // 6. Extended Stats for RCM
+    const doctorPerformance = doctors.map(doc => {
+      const dApps = appointments.filter(a => (a.doctor_id === doc.id || a.doctor?.id === doc.id));
+      const dCons = consultations.filter(c => (c.doctor_id === doc.id || c.doctor?.id === doc.id));
+      const conv = dApps.length === 0 ? 0 : Math.round((dCons.length / dApps.length) * 100);
+      return {
+        id: doc.id,
+        name: doc.name,
+        appointments: dApps.length,
+        consultations: dCons.length,
+        conversionRate: conv
+      };
+    }).sort((a, b) => b.appointments - a.appointments);
+
+    const servicePopularity = Object.entries(specialtyDist).map(([name, count]) => ({
+      name,
+      count,
+      percentage: Math.round((count / totalConsultas) * 100)
+    })).sort((a, b) => b.count - a.count);
+
+    // Monthly Financials (Last 12 months)
+    const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      const label = MONTHS_SHORT[m];
+      
+      const mInvoices = invoices.filter(inv => {
+        const idate = new Date(inv.created_at);
+        return idate.getMonth() === m && idate.getFullYear() === y;
+      });
+      const mExpenses = expenses.filter(exp => {
+        const edate = new Date(exp.date);
+        return edate.getMonth() === m && edate.getFullYear() === y;
+      });
+
+      return {
+        label,
+        income: mInvoices.reduce((s, inv) => s + (inv.total_amount || 0), 0),
+        expenses: mExpenses.reduce((s, exp) => s + (exp.amount || 0), 0)
+      };
+    });
+
     return {
       currentIncome,
       incomeTrend,
@@ -281,8 +362,14 @@ export const DataProvider = ({ children }) => {
       debtors: patientBalances,
       specialtyData,
       totalIncome: invoices.reduce((sum, i) => sum + (i.total_amount || 0), 0),
-      totalCuentasPorCobrar: patientBalances.reduce((sum, p) => sum + p.balance, 0),
-      totalEgresos: expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+      totalCuentasPorCobrar: patientBalances.reduce((sum, p) => sum + (p.debt || 0), 0),
+      totalEgresos: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+      extendedStats: {
+        doctorPerformance,
+        servicePopularity,
+        monthlyTrends,
+        patientGrowth: patients.length
+      }
     };
   }, [invoices, patients, appointments, consultations, payments, expenses]);
 
@@ -498,6 +585,7 @@ export const DataProvider = ({ children }) => {
       invoices, addInvoice,
       team, removeTeamMember,
       stats,
+      extendedStats: stats?.extendedStats,
       loading, error, refresh: fetchAllData
     }}>
       {children}
