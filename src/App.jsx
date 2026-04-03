@@ -74,7 +74,7 @@ const AppContent = () => {
     { id: 'scheduler', path: '/scheduler', label: 'Agenda Atómica', icon: <Calendar size={20} /> },
     { id: 'patients', path: '/patients', label: 'Pacientes', icon: <Users size={20} /> },
     { id: 'finance', path: '/finance', label: 'Finanzas (USD/VES)', icon: <CreditCard size={20} /> },
-    { id: 'statistics', path: '/statistics', label: 'Estadísticas (RCM)', icon: <BarChart3 size={20} /> },
+    { id: 'statistics', path: '/statistics', label: 'Estadísticas', icon: <BarChart3 size={20} /> },
     { id: 'settings', path: '/settings', label: 'Control Maestro', icon: <Settings size={20} /> },
   ];
 
@@ -207,10 +207,15 @@ const AppContent = () => {
       {showPatientModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'flex-end', zIndex: 100
+          background: 'rgba(15,23,42,0.5)', display: 'flex', justifyContent: 'flex-end', zIndex: 9000,
+          backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
         }} onClick={() => setShowPatientModal(false)}>
           <div 
-            style={{ width: '500px', height: '100%', background: 'white', padding: '2rem', boxShadow: '-4px 0 15px rgba(0,0,0,0.1)' }}
+            style={{
+              width: '520px', height: '100%', background: 'white',
+              boxShadow: '-20px 0 60px rgba(0,0,0,0.15)',
+              display: 'flex', flexDirection: 'column',
+            }}
             onClick={(e) => e.stopPropagation()}
             className="animate-in slide-in-from-right duration-300"
           >

@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer
+  Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
 import {
-  DollarSign, Users, BarChart3, TrendingUp, TrendingDown,
-  ChevronDown, Send, Loader2, Clock, Calendar
+  DollarSign, Users, BarChart3, TrendingUp, TrendingDown, Activity,
+  ChevronDown, Send, Loader2, Clock, Calendar, CheckCircle, RefreshCw, XCircle, X
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -103,14 +104,20 @@ const CustomTooltip = ({ active, payload, label, formatPrice }) => {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const BIDashboard = () => {
-  const { stats, invoices, appointments, loading } = useData();
+  const { stats, invoices, appointments, loading, updateAppointment } = useData();
   const { formatPrice } = useSettings();
+  const navigate = useNavigate();
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedWeek, setSelectedWeek] = useState(0); // 0-3 (Semana 1-4)
   const [viewMode, setViewMode] = useState('month'); // day | week | month | annual
+
+  // Resolution Modal State
+  const [reasonModal, setReasonModal] = useState({ isOpen: false, type: null, appId: null }); // type: 'rescheduled' | 'cancelled'
+  const [reasonText, setReasonText] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const monthOptions = MONTHS.map((m, i) => ({ label: m, value: i }));
   const yearOptions = YEARS.map(y => ({ label: String(y), value: y }));
@@ -181,6 +188,46 @@ const BIDashboard = () => {
     return [];
   }, [invoices, viewMode, selectedMonth, selectedYear, selectedWeek]);
 
+  // Secondary Chart Data (Flujo de Citas Operativo)
+  const appointmentTimelineData = useMemo(() => {
+    if (!appointments) return [];
+    
+    if (viewMode === 'annual') {
+      return MONTHS_SHORT.map((m, i) => ({
+        label: m,
+        total: appointments.filter(a => {
+          const d = new Date(a.starts_at || a.start_at);
+          return d.getFullYear() === selectedYear && d.getMonth() === i;
+        }).length
+      }));
+    }
+
+    if (viewMode === 'month') {
+      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      return Array.from({ length: daysInMonth }, (_, i) => ({
+        label: String(i + 1),
+        total: appointments.filter(a => {
+          const d = new Date(a.starts_at || a.start_at);
+          return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth && d.getDate() === (i + 1);
+        }).length
+      }));
+    }
+
+    if (viewMode === 'week') {
+      const [start, end] = WEEKS[selectedWeek].range;
+      return Array.from({ length: end - start + 1 }, (_, i) => ({
+        label: String(start + i),
+        total: appointments.filter(a => {
+          const d = new Date(a.starts_at || a.start_at);
+          return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth && d.getDate() === (start + i);
+        }).length
+      }));
+    }
+
+    // day mode
+    return [];
+  }, [viewMode, selectedMonth, selectedYear, selectedWeek, appointments]);
+
   // highlightIndex
   const highlightIndex = useMemo(() => {
     if (viewMode === 'annual') return YEARS.indexOf(now.getFullYear());
@@ -198,16 +245,41 @@ const BIDashboard = () => {
         return -1;
     }
     return -1;
-  }, [viewMode, selectedMonth, selectedYear, selectedWeek]);
+  }, [viewMode, selectedMonth, selectedYear, selectedWeek, now]);
 
   const upcomingAppointments = useMemo(() => {
     if (!appointments) return [];
-    const now = new Date();
+    const nw = new Date();
     return [...appointments]
-      .filter(a => new Date(a.starts_at || a.start_at) > now)
-      .sort((a, b) => new Date(a.starts_at || a.start_at) - new Date(b.starts_at || b.start_at))
-      .slice(0, 3);
+      .filter(a => new Date(a.starts_at || a.start_at) > nw && a.status === 'scheduled')
+      .sort((a, b) => new Date(a.starts_at || a.start_at) - new Date(b.starts_at || b.start_at));
   }, [appointments]);
+
+  const pastUnresolvedAppointments = useMemo(() => {
+    if (!appointments) return [];
+    const nw = new Date();
+    return [...appointments]
+      .filter(a => new Date(a.starts_at || a.start_at) < nw && a.status === 'scheduled')
+      .sort((a, b) => new Date(b.starts_at || b.start_at) - new Date(a.starts_at || a.start_at));
+  }, [appointments]);
+
+  const handleStatusUpdate = async (appId, newStatus, reason = null) => {
+    if (!appId) return;
+    setIsUpdating(true);
+    try {
+      await updateAppointment(appId, { 
+        status: newStatus,
+        status_reason: reason 
+      });
+      setReasonModal({ isOpen: false, type: null, appId: null });
+      setReasonText('');
+    } catch (error) {
+       console.error("Error updating status:", error);
+       alert("Hubo un error al actualizar la cita.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const kpis = [
     {
@@ -401,6 +473,61 @@ const BIDashboard = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Secondary Analytical Graph (Flujo de Citas) */}
+          <div style={{
+            background: 'white', border: '1px solid #E2E8F0', borderRadius: '1rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: '1.5rem',
+            minHeight: '340px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1E293B', margin: 0, letterSpacing: '-0.02em' }}>
+                  Flujo Operativo
+                </h3>
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94A3B8', margin: '0.25rem 0 0 0' }}>
+                  Volumen de citas programadas en el tiempo
+                </p>
+              </div>
+              <div style={{ background: '#F8FAFC', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Activity size={14} color="#3B82F6" />
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#334155' }}>
+                  {appointmentTimelineData.reduce((acc, curr) => acc + curr.total, 0)} TOTALES
+                </span>
+              </div>
+            </div>
+
+            <div style={{ width: '100%', height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={appointmentTimelineData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                  <XAxis 
+                    dataKey="label" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }} 
+                    allowDecimals={false}
+                  />
+                  <Tooltip 
+                    cursor={{ stroke: '#CBD5E1', strokeWidth: 1, strokeDasharray: '4 4' }} 
+                    contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', fontWeight: 800 }}
+                  />
+                  <Area type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={4} fillOpacity={1} fill="url(#colorTotal)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -457,19 +584,25 @@ const BIDashboard = () => {
               PRÓXIMAS CITAS
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {upcomingAppointments.length > 0 ? upcomingAppointments.map((app, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {upcomingAppointments.length > 0 ? upcomingAppointments.slice(0, 3).map((app, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => navigate(`/scheduler/appointment/${app.id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.5rem', transition: 'background 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'}
+                  onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                >
                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#F8FAFC', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Calendar size={16} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {app.patient?.full_name || app.patient?.first_name || 'Paciente'}
+                      {app.patient?.full_name || app.patient?.first_name || app.patientName || 'Paciente'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
                       <Clock size={10} style={{ color: '#2563EB' }} />
                       <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#64748B' }}>
-                        {new Date(app.starts_at || app.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {app.doctor?.full_name?.split(' ')[0] || 'Dr.'}
+                        {new Date(app.starts_at || app.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {app.doctor?.full_name?.split(' ')[0] || app.doctorName || 'Dr.'}
                       </span>
                     </div>
                   </div>
@@ -479,11 +612,135 @@ const BIDashboard = () => {
                   ✕ Sin citas programadas
                 </div>
               )}
+              {upcomingAppointments.length > 3 && (
+                <button
+                  onClick={() => navigate('/scheduler')}
+                  style={{ 
+                    marginTop: '0.5rem', width: '100%', padding: '0.5rem', background: '#F8FAFC', border: '1px solid #E2E8F0', 
+                    borderRadius: '0.5rem', color: '#64748B', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' 
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#EFF6FF'; e.currentTarget.style.color = '#2563EB'; }}
+                  onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#64748B'; }}
+                >
+                  Y {upcomingAppointments.length - 3} MÁS
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Past Unresolved Appointments (Citas No Controladas) */}
+          <div style={{
+            background: 'white', border: '1px dashed #CBD5E1', borderRadius: '1rem',
+            padding: '1.25rem 1.5rem',
+          }}>
+            <h4 style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>
+              CITAS NO CONTROLADAS
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {pastUnresolvedAppointments.length > 0 ? Object.values(
+                // Max 4 visible
+                pastUnresolvedAppointments.slice(0, 4)
+              ).map((app, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                     <div 
+                        onClick={() => navigate(`/scheduler/appointment/${app.id}`)}
+                        style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+                     >
+                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B', textDecoration: 'underline decoration-dotted decoration-slate-300' }}>
+                          {app.patient?.full_name || app.patient?.first_name || app.patientName || 'Paciente'}
+                       </span>
+                       <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94A3B8' }}>
+                          {new Date(app.starts_at || app.start_at).toLocaleDateString()}
+                       </span>
+                     </div>
+                  </div>
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button 
+                      onClick={() => handleStatusUpdate(app.id, 'completed')}
+                      disabled={isUpdating}
+                      style={{ flex: 1, padding: '0.35rem 0', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '0.4rem', color: '#059669', fontSize: '0.6rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', cursor: 'pointer', transition: 'all 0.15s' }}
+                      onMouseOver={e => e.currentTarget.style.background = '#10B981'}
+                      onMouseOut={e => e.currentTarget.style.background = '#ECFDF5'}
+                    >
+                      <CheckCircle size={10} /> Exitosa
+                    </button>
+                    <button 
+                      onClick={() => setReasonModal({ isOpen: true, type: 'rescheduled', appId: app.id })}
+                      disabled={isUpdating}
+                      style={{ flex: 1, padding: '0.35rem 0', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '0.4rem', color: '#D97706', fontSize: '0.6rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', cursor: 'pointer', transition: 'all 0.15s' }}
+                      onMouseOver={e => e.currentTarget.style.background = '#F59E0B'}
+                      onMouseOut={e => e.currentTarget.style.background = '#FFFBEB'}
+                    >
+                      <RefreshCw size={10} /> Reagendada
+                    </button>
+                    <button 
+                      onClick={() => setReasonModal({ isOpen: true, type: 'cancelled', appId: app.id })}
+                      disabled={isUpdating}
+                      style={{ flex: 1, padding: '0.35rem 0', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '0.4rem', color: '#DC2626', fontSize: '0.6rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', cursor: 'pointer', transition: 'all 0.15s' }}
+                      onMouseOver={e => e.currentTarget.style.background = '#EF4444'}
+                      onMouseOut={e => e.currentTarget.style.background = '#FEF2F2'}
+                    >
+                      <XCircle size={10} /> Cancelada
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <div style={{ textAlign: 'center', padding: '1rem 0', color: '#94A3B8', fontSize: '0.7rem', fontWeight: 700 }}>
+                  ✓ Sin citas rezagadas
+                </div>
+              )}
             </div>
           </div>
 
         </div>
       </div>
+
+      {/* Reason Modal Port */}
+      {reasonModal.isOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ background: 'white', borderRadius: '2rem', width: '100%', maxWidth: '32rem', padding: '2rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                   <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1E293B', margin: 0 }}>
+                     {reasonModal.type === 'rescheduled' ? 'Motivo del Reagendamiento' : 'Motivo de Cancelación'}
+                   </h2>
+                   <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8', margin: 0 }}>
+                     Escribe detalladamente por qué el paciente modificó excepcionalmente esta orden.
+                   </p>
+                </div>
+                <button onClick={() => setReasonModal({ isOpen: false, type: null, appId: null })} style={{ padding: '0.5rem', background: '#F8FAFC', color: '#94A3B8', border: 'none', borderRadius: '50%', cursor: 'pointer', transition: 'background 0.2s' }}>
+                   <X size={18} />
+                </button>
+             </div>
+             
+             <textarea 
+                autoFocus
+                style={{ width: '100%', outline: 'none', resize: 'none', height: '8rem', background: '#F8FAFC', border: '2px solid #F1F5F9', borderRadius: '1rem', padding: '1rem', fontSize: '0.875rem', fontWeight: 700, color: '#334155', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                placeholder="Ejemplo: Se le olvidó la cita, Problemas económicos, Viaje imprevisto..."
+                value={reasonText}
+                onChange={e => setReasonText(e.target.value)}
+             />
+             
+             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button 
+                   onClick={() => setReasonModal({ isOpen: false, type: null, appId: null })}
+                   style={{ padding: '0.75rem 1.5rem', fontWeight: 900, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', background: 'transparent', border: 'none', borderRadius: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
+                >
+                   Atrás
+                </button>
+                <button 
+                   disabled={isUpdating || reasonText.trim().length === 0}
+                   onClick={() => handleStatusUpdate(reasonModal.appId, reasonModal.type, reasonText)}
+                   style={{ padding: '0.75rem 2rem', fontWeight: 900, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'white', background: reasonModal.type === 'rescheduled' ? '#F59E0B' : '#EF4444', border: 'none', borderRadius: '0.75rem', cursor: 'pointer', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'transform 0.1s', opacity: (isUpdating || reasonText.trim().length === 0) ? 0.5 : 1 }}
+                >
+                   Finalizar
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

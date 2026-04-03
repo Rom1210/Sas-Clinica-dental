@@ -1,13 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Filter, Zap, LayoutGrid, CalendarDays, ClipboardList, Calendar as CalendarIcon, CheckCircle2, User, Clock, Check, X, AlertCircle, Stethoscope, DollarSign, CheckCircle, RefreshCw, Ban } from 'lucide-react';
-import useSoundFX from '../../hooks/useSoundFX';
+import { ChevronLeft, ChevronRight, Filter, Zap, LayoutGrid, CalendarDays, ClipboardList, Calendar as CalendarIcon, CheckCircle2, User, Clock, Check, X, AlertCircle, Stethoscope, DollarSign } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import AppointmentModal from './AppointmentModal';
 
 const Scheduler = () => {
-  const { appointments, addAppointment, addPatient, doctors, consultations, payments, patients } = useData();
+  const { appointments, addAppointment, doctors, consultations, payments, patients } = useData();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -18,7 +17,7 @@ const Scheduler = () => {
   const [view, setView] = useState('week');
   const [filterType, setFilterType] = useState(() => {
     if (location.state?.preloadedDoctor) {
-      return location.state.preloadedDoctor.isSpecialist ? 'Especialista' : 'Odontólogo general';
+      return location.state.preloadedDoctor.isSpecialist ? 'Especialista' : 'Odont├│logo general';
     }
     return 'Todos';
   });
@@ -36,14 +35,11 @@ const Scheduler = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartSlot, setDragStartSlot] = useState(null); // { dateStr, timeIdx }
-  const [pointerPos, setPointerPos] = useState({ x: 0, y: 0 });
-  const [isLongDrag, setIsLongDrag] = useState(false);
 
   // 4. Core Computed Data (Memos) - Move to TOP to avoid TDZ
 
   const hours = useMemo(() => {
-    // Extend until 22:00 (10 PM) as requested
-    return Array.from({ length: 57 }, (_, i) => {
+    return Array.from({ length: 48 }, (_, i) => {
       const totalMin = 8 * 60 + i * 15;
       const h = Math.floor(totalMin / 60);
       const m = totalMin % 60;
@@ -89,7 +85,7 @@ const Scheduler = () => {
   const getAppointmentsForSlot = (dateStr, time) => {
     let filtered = appointments || [];
 
-    if (filterType === 'Odontólogo general') {
+    if (filterType === 'Odont├│logo general') {
       filtered = filtered.filter(app => {
         const doc = doctors.find(d => d.id === getDocId(app));
         return doc && !doc.isSpecialist;
@@ -113,10 +109,13 @@ const Scheduler = () => {
 
   const filteredDoctors = useMemo(() => {
     if (filterType === 'Todos') return doctors || [];
-    if (filterType === 'Odontólogo general') return (doctors || []).filter(d => !d.isSpecialist);
+    if (filterType === 'Odont├│logo general') return (doctors || []).filter(d => !d.isSpecialist);
     if (filterType === 'Especialista') return (doctors || []).filter(d => d.isSpecialist);
     return doctors || [];
   }, [doctors, filterType]);
+
+  // 5. Successors Data (Calculated from dependencies)
+
 
   const contiguousBlocks = useMemo(() => {
     const byDate = selectedSlots.reduce((acc, slotStr) => {
@@ -179,10 +178,9 @@ const Scheduler = () => {
       const currentHour = now.getHours();
       const currentMin = now.getMinutes();
 
-      if (isTodayVisible && currentHour >= 8 && currentHour < 22) {
-        // Caracas/Venezuela Time Adjustment (UTC-4)
+      if (isTodayVisible && currentHour >= 8 && currentHour < 20) {
         const totalMinutesFromStart = (currentHour - 8) * 60 + currentMin;
-        const topPosition = (totalMinutesFromStart / 15) * 56; 
+        const topPosition = (totalMinutesFromStart / 15) * 56.5;
 
         line.style.top = `${topPosition}px`;
         line.style.display = 'block';
@@ -212,7 +210,6 @@ const Scheduler = () => {
       if (isDragging) {
         setIsDragging(false);
         setDragStartSlot(null);
-        setIsLongDrag(false);
       }
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
@@ -241,10 +238,7 @@ const Scheduler = () => {
 
   const showToast = (msg) => {
     setSuccessToast(msg);
-    setTimeout(() => {
-      setSuccessToast(null);
-      // If closing a blocked operation, refreshing background data
-    }, 4000);
+    setTimeout(() => setSuccessToast(null), 4000);
   };
 
   const clearPrefilledContext = () => {
@@ -256,11 +250,6 @@ const Scheduler = () => {
     const time = hours[timeIdx];
     const existingApp = getAppointmentsForSlot(dateStr, time)[0];
     if (existingApp) {
-      if (existingApp.status === 'blocked') {
-        // Allow removing block or viewing it
-        navigate(`/scheduler/appointment/${existingApp.id}`);
-        return;
-      }
       navigate(`/scheduler/appointment/${existingApp.id}`);
       return;
     }
@@ -268,46 +257,18 @@ const Scheduler = () => {
     const slotKey = `${dateStr}|${time}`;
     setIsDragging(true);
     setDragStartSlot({ dateStr, timeIdx });
-    setPointerPos({ x: e.clientX, y: e.clientY });
-    setIsLongDrag(false);
     
-    setSelectedSlots(prev => {
-      const slotKey = `${dateStr}|${time}`;
-      if (prev.length > 0) {
-        const firstDate = prev[0].split('|')[0];
-        if (firstDate !== dateStr) return [slotKey];
-
-        const existingIdxs = prev.map(s => hours.indexOf(s.split('|')[1])).sort((a,b) => a-b);
-        const minIdx = existingIdxs[0];
-        const maxIdx = existingIdxs[existingIdxs.length - 1];
-
-        // Only allow adjacent selection or toggling an edge
-        if (timeIdx === minIdx - 1 || timeIdx === maxIdx + 1 || prev.includes(slotKey)) {
-          return prev.includes(slotKey) 
-            ? prev.filter(s => s !== slotKey) 
-            : [...prev, slotKey];
-        } else {
-          // If not adjacent, start fresh with the new slot
-          return [slotKey];
-        }
-      }
-      return [slotKey];
-    });
+    // Additive selection for touch/tablets
+    setSelectedSlots(prev => 
+      prev.includes(slotKey) 
+        ? prev.filter(s => s !== slotKey) 
+        : [...prev, slotKey]
+    );
   };
 
   const handlePointerMove = (e, dateStr, timeIdx) => {
     if (!isDragging || !dragStartSlot) return;
-    
-    // Threshold for drag selection vs click
-    const dx = Math.abs(e.clientX - pointerPos.x);
-    const dy = Math.abs(e.clientY - pointerPos.y);
-    if (!isLongDrag && (dx > 10 || dy > 10)) {
-      setIsLongDrag(true);
-    }
-    
-    if (!isLongDrag) return;
     if (dateStr !== dragStartSlot.dateStr) return;
-    
     const startIdx = Math.min(dragStartSlot.timeIdx, timeIdx);
     const endIdx = Math.max(dragStartSlot.timeIdx, timeIdx);
     
@@ -321,6 +282,7 @@ const Scheduler = () => {
       rangeSelection.push(`${dateStr}|${time}`);
     }
     
+    // Merge range selection with previous individual clicks
     setSelectedSlots(prev => {
       const otherDates = prev.filter(s => s.split('|')[0] !== dateStr);
       const unique = new Set([...otherDates, ...rangeSelection]);
@@ -331,63 +293,6 @@ const Scheduler = () => {
   const handlePointerUp = () => {
     setIsDragging(false);
     setDragStartSlot(null);
-    setIsLongDrag(false);
-  };
-
-  const handleBlockTime = async () => {
-    if (!selectedSlots.length) return;
-    const sortedBlocks = [...selectedSlots].sort((a, b) => {
-      const timeA = a.split('|')[1];
-      const timeB = b.split('|')[1];
-      return hours.indexOf(timeA) - hours.indexOf(timeB);
-    });
-    const dateStr = sortedBlocks[0].split('|')[0];
-    const timeBlocks = sortedBlocks.map(s => s.split('|')[1]);
-    const lastTime = timeBlocks[timeBlocks.length - 1];
-    const lastIdx = hours.indexOf(lastTime);
-    const endTime = hours[lastIdx + 1] || '22:00';
-    const doctorId = preloadedDoctor?.id || selectedDoctorId || doctors?.[0]?.id;
-
-    // Technical Patient Logic for Blocking (to bypass DB constraints)
-    let blockPatient = patients?.find(p => p.dni === 'ADMIN_BLOCK' || p.full_name?.toUpperCase().includes('AGENDA BLOQUEADA'));
-    
-    if (!blockPatient) {
-      try {
-        blockPatient = await addPatient({
-          full_name: 'BLOQUEO DE AGENDA',
-          dni: 'ADMIN_BLOCK',
-          phone: '',
-          email: 'admin@block.com',
-          status: 'technical'
-        });
-      } catch (err) {
-        console.error('Failed to create technical patient for blocking:', err);
-        // Fallback to first patient if creation fails (to not block user during urgency)
-        blockPatient = patients?.[0];
-      }
-    }
-
-    if (!blockPatient) return alert('Error: No se pudo establecer un paciente técnico para el bloqueo.');
-
-    const newBlock = {
-      starts_at: `${dateStr}T${timeBlocks[0]}:00`,
-      ends_at: `${dateStr}T${endTime}:00`,
-      start_at: `${dateStr}T${timeBlocks[0]}:00`,
-      end_at: `${dateStr}T${endTime}:00`,
-      patient_id: blockPatient.id,
-      doctor_id: doctorId,
-      status: 'blocked',
-      notes: 'Horario Bloqueado (Administración)',
-    };
-
-    try {
-      await addAppointment(newBlock);
-      setSelectedSlots([]);
-      setSuccessToast(`✓ Horario Bloqueado — ${dateStr} ${timeBlocks[0]}`);
-    } catch (err) {
-      console.error('Error blocking time:', err);
-      alert('Error: ' + err.message);
-    }
   };
 
   const handleScheduleAppointment = async () => {
@@ -440,7 +345,7 @@ const Scheduler = () => {
     try {
       await addAppointment(newAppointment);
       setSelectedSlots([]);
-      setSuccessToast(`✓ Cita guardada — ${prefilledPatient.full_name || prefilledPatient.name || 'Paciente'} · ${dateStr} ${timeBlocks[0]}`);
+      setSuccessToast(`Ô£ô Cita guardada ÔÇö ${prefilledPatient.name} ┬À ${dateStr} ${timeBlocks[0]}`);
       setTimeout(() => setSuccessToast(null), 5000);
       clearPrefilledContext();
     } catch (err) {
@@ -469,22 +374,22 @@ const Scheduler = () => {
                 <CalendarIcon size={20} strokeWidth={2.5} />
               </div>
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Agenda Atómica</h2>
+                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Agenda At├│mica</h2>
                 <button 
                   onClick={() => navigate('/scheduler/upcoming')}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest transition-all hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-lg active:scale-95 group ml-2 shadow-sm"
                 >
                   <ClipboardList size={14} strokeWidth={3} className="group-hover:rotate-12 transition-transform" />
-                  Ver listado de citas próximas
+                  Ver listado de citas pr├│ximas
                 </button>
               </div>
             </div>
-            <p className="text-slate-500 text-sm font-medium pl-13">Visualización y gestión de citas clínicas</p>
+            <p className="text-slate-500 text-sm font-medium pl-13">Visualizaci├│n y gesti├│n de citas cl├¡nicas</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 shadow-sm backdrop-blur-sm">
             <div className="flex items-center bg-white p-1 rounded-xl border border-slate-100/50 shadow-sm">
-              {['Todos', 'Odontólogo general', 'Especialista'].map(f => (
+              {['Todos', 'Odont├│logo general', 'Especialista'].map(f => (
                 <button
                   key={f}
                   onClick={() => {
@@ -502,8 +407,8 @@ const Scheduler = () => {
 
             <div className="hidden lg:flex items-center bg-white p-1 rounded-xl border border-slate-100/50 shadow-sm">
               {[
-                { id: 'day', label: '1 Día', icon: <LayoutGrid size={14} /> },
-                { id: '3days', label: '3 Días', icon: <CalendarDays size={14} /> },
+                { id: 'day', label: '1 D├¡a', icon: <LayoutGrid size={14} /> },
+                { id: '3days', label: '3 D├¡as', icon: <CalendarDays size={14} /> },
                 { id: 'week', label: 'Semana', icon: <CalendarIcon size={14} /> }
               ].map(v => (
                 <button
@@ -676,7 +581,7 @@ const Scheduler = () => {
                   {time.endsWith(':00') ? (
                     <span className="text-[11px] font-extrabold text-slate-900 tracking-tight bg-white border border-slate-200 px-2 py-0.5 rounded-full shadow-sm">{time}</span>
                   ) : (
-                    <span className="text-[9px] font-bold text-slate-400/50 tracking-widest">{time.split(':')[1]}</span>
+                    <span className="text-[9px] font-bold text-slate-400 tracking-widest opacity-60">{time.split(':')[1]}</span>
                   )}
                 </div>
 
@@ -699,34 +604,22 @@ const Scheduler = () => {
                     >
                       {isSelected && (
                         <div
-                          className={`absolute z-10 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.15)] animate-pop-in ${isFirstSelected ? 'rounded-t-[1rem]' : ''} ${isLastSelected ? 'rounded-b-[1rem]' : ''}`}
+                          className={`absolute inset-x-2 z-10 backdrop-blur-sm shadow-[0_8px_20px_rgba(0,0,0,0.15)] animate-pop-in ${isFirstSelected ? 'rounded-t-full' : ''} ${isLastSelected ? 'rounded-b-full' : ''}`}
                           style={{
-                            left: '4px',
-                            right: '4px',
-                            backgroundColor: prefilledPatient 
-                              ? (doctors.find(d => d.id === selectedDoctorId)?.color || preloadedDoctor?.color || '#3b82f6') + 'e6'
-                              : '#EF4444e6', 
-                            top: isFirstSelected ? '4px' : '-1px',
+                            backgroundColor: (doctors.find(d => d.id === selectedDoctorId)?.color || '#3b82f6') + 'e6',
+                            top: isFirstSelected ? '4px' : '0',
                             height: isFirstSelected && isLastSelected
                               ? 'calc(100% - 8px)'
                               : isFirstSelected
-                                ? 'calc(100% - 4px + 2px)'
+                                ? 'calc(100% - 4px)'
                                 : isLastSelected
-                                  ? 'calc(100% - 3px)'
-                                  : 'calc(100% + 2px)',
-                            borderTopLeftRadius: isFirstSelected ? '2rem' : '0',
-                            borderTopRightRadius: isFirstSelected ? '2rem' : '0',
-                            borderBottomLeftRadius: isLastSelected ? '2rem' : '0',
-                            borderBottomRightRadius: isLastSelected ? '2rem' : '0',
-                            border: `1.5px solid ${prefilledPatient ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.7)'}`,
-                            borderBottomWidth: isLastSelected ? '1.5px' : '0',
-                            borderTopWidth: isFirstSelected ? '1.5px' : '0',
+                                  ? 'calc(100% - 4px)'
+                                  : 'calc(100% + 1px)'
                           }}
                         >
                           {isFirstSelected && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex flex-col items-center justify-center pointer-events-none gap-0.5">
-                              {!prefilledPatient && <span className="text-[12px]">🚫</span>}
-                              <span className="text-[9px] font-black text-white bg-black/20 backdrop-blur-md px-2 py-0.5 rounded-full ring-1 ring-white/30 whitespace-nowrap shadow-sm tracking-tighter">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center pointer-events-none">
+                              <span className="text-[9px] font-black text-white bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full ring-1 ring-white/30 whitespace-nowrap shadow-sm">
                                 {block.duration} MIN
                               </span>
                             </div>
@@ -751,7 +644,6 @@ const Scheduler = () => {
 
                             const isFirst = app.blocks[0] === time;
                             const isLast = app.blocks[app.blocks.length - 1] === time;
-                            const isBlocked = app.status === 'blocked';
 
                             return (
                               <div
@@ -769,7 +661,7 @@ const Scheduler = () => {
                                         : 'calc(100% + 2px)',
                                   width: `calc(${width}% - 2px)`,
                                   left: `calc(${left}% + 1px)`,
-                                  backgroundColor: isBlocked ? `${docColor}99` : docColor, // 99 = 60% opacity
+                                  backgroundColor: docColor,
                                   borderRadius: isFirst && isLast 
                                     ? '10px' 
                                     : isFirst 
@@ -782,39 +674,17 @@ const Scheduler = () => {
                                   cursor: 'pointer',
                                   overflow: 'hidden',
                                   zIndex: 10 + index,
-                                  boxShadow: isBlocked ? 'none' : 'inset 0 0 20px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.1)',
+                                  boxShadow: 'inset 0 0 20px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.1)',
                                   display: 'flex',
                                   flexDirection: 'column',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
                                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  border: isBlocked ? `2px dashed ${docColor}` : '1px solid rgba(255,255,255,0.1)',
-                                  filter: isBlocked ? 'saturate(0.5)' : (app.status === 'cancelled' ? 'grayscale(0.8)' : 'none'),
-                                  opacity: app.status === 'cancelled' ? 0.6 : 1
+                                  border: '1px solid rgba(255,255,255,0.1)'
                                 }}
                                 onMouseOver={e => e.currentTarget.style.filter = 'brightness(1.1)'}
                                 onMouseOut={e => e.currentTarget.style.filter = 'none'}
-                                title={isBlocked ? `Bloqueado - ${docLabel}` : `${app.patientName} - ${docLabel}`}
+                                title={`${app.patientName} - ${docLabel}`}
                               >
-                                {isBlocked && isFirst && (
-                                  <span className="text-lg animate-pulse">⚽</span>
-                                )}
-                                {!isBlocked && isFirst && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                    {app.status === 'completed' && (
-                                      <CheckCircle size={10} strokeWidth={3} style={{ opacity: 0.9 }} />
-                                    )}
-                                    {app.status === 'rescheduled' && (
-                                      <RefreshCw size={10} strokeWidth={3} style={{ opacity: 0.9 }} />
-                                    )}
-                                    {app.status === 'cancelled' && (
-                                      <Ban size={10} strokeWidth={3} style={{ opacity: 0.9 }} />
-                                    )}
-                                    <span className="text-[8px] font-black uppercase opacity-60 mt-1">
-                                      {app.patientName.split(' ')[0]}
-                                    </span>
-                                  </div>
-                                )}
+                                {/* Lego Mode: Pure color unit without text labels */}
                               </div>
                             );
                           })}
@@ -838,51 +708,42 @@ const Scheduler = () => {
       </div>
 
 
-      {/* Selection Floating Bar — Redesigned ‘Premium Dock’ */}
+      {/* Selection Floating Bar ÔÇö Redesigned ÔÇÿPremium DockÔÇÖ */}
       {(selectionSummary && selectedSlots.length > 0) && createPortal(
-        <div 
-          className="fixed border-none shadow-[0_32px_80px_rgba(0,0,0,0.3)] rounded-full flex items-center animate-slide-up-dock z-[9999]"
-          style={{
-            bottom: '48px',
-            left: '50%',
-            transform: 'translateX(-50%)', 
-            zIndex: 9999,
-            backgroundColor: prefilledPatient 
-              ? (doctors.find(d => d.id === selectedDoctorId)?.color || preloadedDoctor?.color || '#3b82f6')
-              : '#EF4444',
-            minWidth: '550px',
-            padding: '10px 40px',
-          }}
-        >
-          {/* Column 1: Info (Left) */}
-          <div className="flex-1 flex flex-col items-start justify-center">
-            <span className="text-[12px] font-black leading-none tracking-tight text-white mb-1">
-              {selectedSlots.length} Bloque{selectedSlots.length > 1 ? 's' : ''}
-            </span>
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90 whitespace-nowrap" style={{ color: '#ffffff' }}>Selección</span>
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-[#0b1121]/95 backdrop-blur-3xl border border-white/10 shadow-[0_32px_80px_rgba(0,0,0,0.5)] p-2 rounded-[2.5rem] flex items-center gap-1.5 animate-slide-up-dock z-[9999] ring-1 ring-white/20 min-w-[420px] justify-between">
+          <div className="flex items-center gap-4 pl-6 pr-4 border-r border-white/5 py-1">
+            <div className="flex flex-col">
+              <span className="text-[13px] font-black text-white leading-none tracking-tight">
+                {selectedSlots.length} Bloque{selectedSlots.length > 1 ? 's' : ''}
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Seleccionados</span>
+            </div>
           </div>
-
-          {/* Column 2: Close (Exact Center) */}
-          <div className="flex justify-center flex-shrink-0">
+          
+          <div className="flex items-center gap-2 p-1">
             <button 
               onClick={() => setSelectedSlots([])} 
-              className="w-11 h-11 flex items-center justify-center rounded-full transition-all cursor-pointer hover:bg-white/10 active:scale-90 border-none text-white p-0"
-              style={{ backgroundColor: 'transparent', border: 'none' }}
-              title="Cancelar"
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-full transition-all border-none cursor-pointer bg-transparent active:scale-95 group"
+              title="Cancelar selecci├│n"
             >
-              <X size={26} strokeWidth={4} className="hover:rotate-90 transition-transform duration-300" />
+              <X size={18} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-300" />
             </button>
-          </div>
+            
+            <div className="h-8 w-px bg-white/10 mx-1"></div>
 
-          {/* Column 3: Action (Right) */}
-          <div className="flex-1 flex justify-end">
             <button 
-              onClick={prefilledPatient ? handleScheduleAppointment : handleBlockTime} 
-              className="px-6 py-3 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-full transition-all hover:bg-white/10 flex items-center gap-3 active:scale-95 border-none cursor-pointer"
-              style={{ backgroundColor: 'transparent', border: 'none' }}
+              disabled={!prefilledPatient}
+              onClick={handleScheduleAppointment} 
+              className={`px-8 py-3 text-white text-[10px] font-black uppercase tracking-[0.15em] rounded-2xl transition-all border-none flex items-center gap-2 active:scale-90 shadow-lg ${!prefilledPatient ? 'cursor-not-allowed' : 'hover:brightness-110 cursor-pointer shimmer-effect'}`}
+              style={{
+                backgroundColor: (doctors.find(d => d.id === selectedDoctorId)?.color || '#3b82f6') + (prefilledPatient ? '' : '33'), // 33 = 20% opacity for inactive
+                color: prefilledPatient ? 'white' : (doctors.find(d => d.id === selectedDoctorId)?.color || '#3b82f6'),
+                boxShadow: prefilledPatient ? `0 8px 25px ${(doctors.find(d => d.id === selectedDoctorId)?.color || '#3b82f6')}40` : 'none',
+                border: prefilledPatient ? 'none' : `1px solid ${(doctors.find(d => d.id === selectedDoctorId)?.color || '#3b82f6')}33`
+              }}
             >
-              {prefilledPatient ? 'Agendar Cita' : 'Bloquear Horario'} 
-              <ChevronRight size={18} strokeWidth={4} />
+              {prefilledPatient ? 'Agendar Cita' : 'Selecciona Paciente'} 
+              <ChevronRight size={14} strokeWidth={3} />
             </button>
           </div>
         </div>,
@@ -893,7 +754,7 @@ const Scheduler = () => {
       {successToast && (
         <div className="fixed bottom-10 right-10 z-[10000] bg-slate-900/95 backdrop-blur-xl border border-white/10 p-1.5 pl-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex items-center gap-5 animate-in slide-in-from-bottom-5 duration-300">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1.5">Éxito</span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1.5">├ëxito</span>
             <span className="text-sm font-bold text-white leading-tight">{successToast}</span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center border border-emerald-500/30">

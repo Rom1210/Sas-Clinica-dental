@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
+import useSoundFX from '../../hooks/useSoundFX';
 import { 
   ArrowLeft, 
   Calendar as CalendarIcon, 
@@ -10,13 +11,23 @@ import {
   Rewind, 
   ExternalLink,
   ChevronRight,
-  FileText
+  FileText,
+  CheckCircle,
+  RefreshCw,
+  XCircle,
+  X,
+  CalendarCheck,
+  Ban,
 } from 'lucide-react';
 
 const AppointmentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { appointments, consultations, patients, doctors } = useData();
+  const { appointments, consultations, patients, doctors, updateAppointment } = useData();
+
+  const [reasonModal, setReasonModal] = useState({ isOpen: false, type: null }); // type: 'rescheduled' | 'cancelled'
+  const [reasonText, setReasonText] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const appointment = useMemo(() => {
     return (appointments || []).find(a => a.id === id || a.id === parseInt(id));
@@ -64,19 +75,72 @@ const AppointmentDetails = () => {
     });
   }
 
+  const handleStatusUpdate = async (newStatus, reason = null) => {
+    setIsUpdating(true);
+    try {
+      await updateAppointment(appointment.id, { 
+        status: newStatus,
+        status_reason: reason 
+      });
+      setReasonModal({ isOpen: false, type: null });
+      setReasonText('');
+      
+      if (newStatus === 'completed') {
+        // Show success state and auto-close
+        setIsUpdating(true); // Keep it "loading" essentially
+        setTimeout(() => {
+          navigate('/scheduler');
+        }, 1500);
+      }
+    } catch (error) {
+       console.error("Error updating status:", error);
+       alert("Hubo un error al actualizar la cita.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const sfx = useSoundFX();
+
+  const statusMap = {
+    'scheduled': {
+      label: 'Cita Programada',
+      color: 'bg-blue-50 text-blue-600 border-blue-100',
+      icon: <CalendarCheck size={12} strokeWidth={3} />
+    },
+    'completed': {
+      label: 'Consulta Exitosa',
+      color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      icon: <CheckCircle size={12} strokeWidth={3} />
+    },
+    'rescheduled': {
+      label: 'Reagendada',
+      color: 'bg-amber-50 text-amber-600 border-amber-100',
+      icon: <RefreshCw size={12} strokeWidth={3} />
+    },
+    'cancelled': {
+      label: 'Cancelada',
+      color: 'bg-rose-50 text-rose-600 border-rose-100',
+      icon: <Ban size={12} strokeWidth={3} />
+    },
+  };
+
+  const currStatus = appointment.status || 'scheduled';
+  const statusDisplay = statusMap[currStatus] || statusMap['scheduled'];
+
   return (
     <div className="max-w-4xl mx-auto p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header Actions */}
       <div className="flex justify-between items-center mb-8">
         <button 
-          onClick={() => navigate(-1)}
+          onClick={() => { sfx.navigate(); navigate(-1); }}
           className="flex items-center gap-2 text-slate-400 hover:text-primary font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100"
         >
           <ArrowLeft size={14} /> VOLVER
         </button>
         <div className="flex items-center gap-3">
-           <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-             Cita Programada
+           <span className={`px-4 py-1.5 border rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2 ${statusDisplay.color}`}>
+             {statusDisplay.icon} {statusDisplay.label}
            </span>
         </div>
       </div>
@@ -109,7 +173,7 @@ const AppointmentDetails = () => {
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Horario</span>
                   <span className="text-base font-bold text-slate-800">
-                    {new Date(appointment.starts_at || appointment.start_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    {appointment.startTime} - {appointment.endTime}
                   </span>
                 </div>
               </div>
@@ -231,8 +295,145 @@ const AppointmentDetails = () => {
             )}
           </div>
 
+          {/* Resolution Panel (Gestión Operativa) */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col gap-4 pointer-events-auto">
+             <div className="flex flex-col">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Resolución Operativa</h3>
+                <p className="text-slate-400 text-xs font-bold mt-2">Marca el estado final de esta cita para las estadísticas clínicas.</p>
+             </div>
+             
+             <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => { sfx.success(); handleStatusUpdate('completed'); }}
+                  disabled={isUpdating || currStatus === 'completed'}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-100 shadow-sm cursor-pointer disabled:opacity-50 disabled:grayscale"
+                >
+                   <CheckCircle size={16} /> Exitosa
+                </button>
+
+                <button 
+                   onClick={() => { sfx.pop(); setReasonModal({ isOpen: true, type: 'rescheduled' }); }}
+                   disabled={isUpdating || currStatus === 'rescheduled'}
+                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all text-amber-600 bg-amber-50 hover:bg-amber-500 hover:text-white border border-amber-100 shadow-sm cursor-pointer disabled:opacity-50 disabled:grayscale"
+                >
+                   <RefreshCw size={16} /> Reagendada
+                </button>
+
+                <button 
+                   onClick={() => { sfx.pop(); setReasonModal({ isOpen: true, type: 'cancelled' }); }}
+                   disabled={isUpdating || currStatus === 'cancelled'}
+                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all text-rose-600 bg-rose-50 hover:bg-rose-500 hover:text-white border border-rose-100 shadow-sm cursor-pointer disabled:opacity-50 disabled:grayscale"
+                >
+                   <XCircle size={16} /> Cancelada
+                </button>
+             </div>
+          </div>
+
+          {appointment.status_reason && (
+             <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                   <FileText size={16} className="text-slate-400" />
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo Registrado</span>
+                </div>
+                <span className="text-sm font-bold text-slate-700 italic">"{appointment.status_reason}"</span>
+             </div>
+          )}
+
         </div>
       </div>
+
+      {/* Modal de Motivo (Reagendar/Cancelar) */}
+      {reasonModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: '260px',
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100000,
+          padding: '24px',
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '2.5rem',
+            width: '100%',
+            maxWidth: '540px',
+            padding: '40px',
+            boxShadow: '0 32px 80px -12px rgba(0,0,0,0.45)',
+            border: '2px solid #f1f5f9',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+          }}>
+             <div className="flex justify-between items-start mb-8">
+                <div className="flex flex-col gap-3">
+                   <div className="flex items-center gap-4">
+                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${reasonModal.type === 'rescheduled' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'}`}>
+                       {reasonModal.type === 'rescheduled' ? <RefreshCw size={28} /> : <XCircle size={28} />}
+                     </div>
+                     <div className="flex flex-col">
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
+                          {reasonModal.type === 'rescheduled' ? 'Reagendar Cita' : 'Cancelar Cita'}
+                        </h2>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Acción Requerida</span>
+                     </div>
+                   </div>
+                   <p className="text-sm font-bold text-slate-500 mt-2 leading-relaxed">
+                     Por favor, indica el motivo detallado por el cual se está {reasonModal.type === 'rescheduled' ? 'reprogramando' : 'cancelando'} esta sesión clínica.
+                   </p>
+                </div>
+                <button 
+                  onClick={() => setReasonModal({ isOpen: false, type: null })} 
+                  className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all active:scale-90 border-none cursor-pointer"
+                >
+                   <X size={20} strokeWidth={3} />
+                </button>
+             </div>
+             
+             <div className="relative">
+               <textarea 
+                  autoFocus
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] p-6 text-sm font-bold text-slate-700 outline-none focus:border-primary/20 focus:bg-white transition-all resize-none h-40 shadow-inner"
+                  placeholder="Ej: El paciente solicitó el cambio por motivos laborales o de salud..."
+                  value={reasonText}
+                  onChange={e => setReasonText(e.target.value)}
+               />
+               <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></div>
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                    Campo Obligatorio
+                  </span>
+               </div>
+             </div>
+             
+             <div className="flex items-center justify-between gap-4 mt-10">
+                <button 
+                   onClick={() => { sfx.cancel(); setReasonModal({ isOpen: false, type: null }); }}
+                   className="flex-1 px-8 py-4 font-black text-[11px] uppercase tracking-[0.2em] text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-transparent active:scale-95 cursor-pointer"
+                >
+                   Volver
+                </button>
+                <button 
+                   disabled={isUpdating || reasonText.trim().length === 0}
+                   onClick={() => { sfx.confirm(); handleStatusUpdate(reasonModal.type, reasonText); }}
+                   className={`flex-[2] px-8 py-4 font-black text-[11px] uppercase tracking-[0.2em] text-white rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 cursor-pointer disabled:opacity-30 disabled:pointer-events-none disabled:grayscale ${
+                     reasonModal.type === 'rescheduled' 
+                       ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/25' 
+                       : 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/25'
+                   }`}
+                >
+                   {reasonModal.type === 'rescheduled' ? 'Confirmar Reagendamiento' : 'Confirmar Cancelación'}
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

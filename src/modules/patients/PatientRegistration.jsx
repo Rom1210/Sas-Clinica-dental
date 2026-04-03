@@ -1,104 +1,129 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, X, User, Phone, Mail, Calendar, Zap, ChevronDown, ChevronUp, Fingerprint, Info, Heart, Activity, ClipboardList, ShieldCheck, Check, AlertCircle } from 'lucide-react';
+import { Loader2, X, User, Phone, Mail, Calendar, Zap, Fingerprint, Info, Heart, Activity, ClipboardList, ShieldCheck, Check, AlertCircle, ChevronRight, UserPlus } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import useSoundFX from '../../hooks/useSoundFX';
 
-const PremiumField = ({ label, icon, children, helper }) => (
-  <div className="flex flex-col gap-1 group">
+// ─── Field Component ──────────────────────────────────────────────────────────
+const Field = ({ label, helper, children }) => (
+  <div className="flex flex-col gap-2">
     <div className="flex justify-between items-center">
-      <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 group-focus-within:text-primary transition-all">
+      <label style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#94a3b8' }}>
         {label}
       </label>
-      {helper && <span className="text-[9px] font-bold text-slate-300">{helper}</span>}
+      {helper && (
+        <span style={{ fontSize: '9px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '1px 8px', borderRadius: '999px' }}>
+          {helper}
+        </span>
+      )}
     </div>
-    <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-1 rounded-2xl group-focus-within:bg-white group-focus-within:border-primary group-focus-within:shadow-md group-focus-within:shadow-primary/5 transition-all">
-      <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-slate-400 group-focus-within:text-primary group-focus-within:shadow-sm transition-all border border-slate-50">
-        {React.cloneElement(icon, { size: 16 })}
+    {children}
+  </div>
+);
+
+const inputStyle = {
+  width: '100%',
+  background: '#f8fafc',
+  border: '2px solid #f1f5f9',
+  borderRadius: '14px',
+  padding: '12px 16px',
+  fontSize: '14px',
+  fontWeight: 700,
+  color: '#1e293b',
+  outline: 'none',
+  transition: 'all 0.2s',
+  fontFamily: 'inherit',
+};
+
+// ─── Toggle Card ──────────────────────────────────────────────────────────────
+const ToggleCard = ({ label, sublabel, icon: Icon, active, color = '#f43f5e', onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '14px 16px',
+      borderRadius: '16px',
+      border: `2px solid ${active ? color + '30' : '#f1f5f9'}`,
+      background: active ? color + '08' : '#f8fafc',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 12,
+        background: active ? color + '20' : '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: active ? color : '#94a3b8', transition: 'all 0.2s',
+      }}>
+        <Icon size={16} />
       </div>
-      <div className="flex-1 pr-2">
-        {children}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: '12px', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+        <span style={{ fontSize: '9px', fontWeight: 700, color: active ? color : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{sublabel}</span>
       </div>
+    </div>
+    <div style={{
+      width: 20, height: 20, borderRadius: '50%',
+      border: `2px solid ${active ? color : '#cbd5e1'}`,
+      background: active ? color : 'transparent',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      transition: 'all 0.2s',
+    }}>
+      {active && <Check size={11} color="#fff" strokeWidth={3} />}
     </div>
   </div>
 );
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 const PatientRegistration = ({ onClose, onSuccess }) => {
   const { addPatient } = useData();
+  const sfx = useSoundFX();
   const [activeTab, setActiveTab] = useState('core');
   const [age, setAge] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    dni: '',
-    email: '',
-    whatsapp: '',
-    dob: '',
-    gender: '',
-    reason: '',
-    flags: [],
-    fuma: false,
-    bruxismo: false,
+    firstName: '', lastName: '', dni: '',
+    email: '', whatsapp: '', dob: '', gender: '',
+    reason: '', flags: [], fuma: false, bruxismo: false,
   });
 
-  const flagsOptions = [
-    'Alergia a Penicilina', 
-    'Hipertensión', 
-    'Diabetes', 
-    'Embarazo'
-  ];
+  const flagsOptions = ['Alergia a Penicilina', 'Hipertensión', 'Diabetes', 'Embarazo'];
 
-  // Auto-age calculation
   useEffect(() => {
     if (formData.dob) {
       const birthDate = new Date(formData.dob);
       const today = new Date();
-      let ageCalculated = today.getFullYear() - birthDate.getFullYear();
+      let a = today.getFullYear() - birthDate.getFullYear();
       const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        ageCalculated--;
-      }
-      setAge(ageCalculated);
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) a--;
+      setAge(a);
     }
   }, [formData.dob]);
 
-  // Lock body scroll when modal mounts
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const toggleFlag = (flag) => {
-    setFormData(prev => ({
-      ...prev,
-      flags: prev.flags.includes(flag) 
-        ? prev.flags.filter(f => f !== flag) 
-        : [...prev.flags, flag]
-    }));
-  };
+  const set = (key, val) => setFormData(prev => ({ ...prev, [key]: val }));
+  const toggleFlag = (flag) => setFormData(prev => ({
+    ...prev,
+    flags: prev.flags.includes(flag) ? prev.flags.filter(f => f !== flag) : [...prev.flags, flag]
+  }));
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const patientData = {
+      await addPatient({
         full_name: `${formData.firstName} ${formData.lastName}`.trim(),
-        dni: formData.dni,
-        email: formData.email,
-        phone: formData.whatsapp,
-        birth_date: formData.dob,
-        gender: formData.gender,
-        status: 'active',
-        medical_history: {
-          reason: formData.reason,
-          flags: formData.flags,
-          fuma: formData.fuma,
-          bruxismo: formData.bruxismo
-        }
-      };
-
-      await addPatient(patientData);
-      onSuccess(`¡${patientData.full_name} registrado con éxito!`);
+        dni: formData.dni, email: formData.email, phone: formData.whatsapp,
+        birth_date: formData.dob, gender: formData.gender, status: 'active',
+        medical_history: { reason: formData.reason, flags: formData.flags, fuma: formData.fuma, bruxismo: formData.bruxismo }
+      });
+      sfx.success();
+      onSuccess(`¡${formData.firstName} ${formData.lastName} registrado con éxito!`);
     } catch (error) {
       console.error('Error saving patient:', error);
       alert('Error al guardar el paciente: ' + error.message);
@@ -107,266 +132,299 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
     }
   };
 
-  const renderTabContent = () => {
-    switch(activeTab) {
-      case 'core':
-        return (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-500">
-            <div className="grid grid-cols-2 gap-4">
-              <PremiumField label="Nombres" icon={<User size={18} />}>
-                <input 
-                  type="text" className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
-                  placeholder="Ej. Juan Ignacio"
-                  value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                />
-              </PremiumField>
-              <PremiumField label="Apellidos" icon={<User size={18} />}>
-                <input 
-                  type="text" className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
-                  placeholder="Ej. Pérez Sosa"
-                  value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                />
-              </PremiumField>
-            </div>
+  const steps = [
+    { id: 'core', label: 'Identidad', num: 1 },
+    { id: 'health', label: 'Salud', num: 2 },
+    { id: 'history', label: 'Historia', num: 3 },
+  ];
+  const stepIndex = steps.findIndex(s => s.id === activeTab);
 
-            <PremiumField label="Identidad (Cédula/DNI)" icon={<Fingerprint size={18} />}>
-              <input 
-                type="text" className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
-                placeholder="V-12.345.678"
-                value={formData.dni} onChange={(e) => setFormData({...formData, dni: e.target.value})}
-              />
-            </PremiumField>
+  // ── Content per tab ────────────────────────────────────────────────────────
+  const renderContent = () => {
+    if (activeTab === 'core') return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Field label="Nombres">
+            <input style={inputStyle} placeholder="Juan Ignacio"
+              value={formData.firstName} onChange={e => set('firstName', e.target.value)} />
+          </Field>
+          <Field label="Apellidos">
+            <input style={inputStyle} placeholder="Pérez Sosa"
+              value={formData.lastName} onChange={e => set('lastName', e.target.value)} />
+          </Field>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <PremiumField label="WhatsApp" icon={<Phone size={18} className="text-emerald-500" />}>
-                <input 
-                  type="text" className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
-                  placeholder="+58 412..."
-                  value={formData.whatsapp} onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
-                />
-              </PremiumField>
-              <PremiumField label="Email" icon={<Mail size={18} />}>
-                <input 
-                  type="email" className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
-                  placeholder="paciente@mail.com"
-                  value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
-              </PremiumField>
-            </div>
+        <Field label="Cédula / DNI / Pasaporte">
+          <input style={inputStyle} placeholder="V-12.345.678"
+            value={formData.dni} onChange={e => set('dni', e.target.value)} />
+        </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <PremiumField 
-                label="Nacimiento" 
-                icon={<Calendar size={18} />}
-                helper={age !== null ? `${age} años detectados` : null}
-              >
-                <input 
-                  type="date" className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300 cursor-pointer"
-                  value={formData.dob} onChange={(e) => setFormData({...formData, dob: e.target.value})}
-                />
-              </PremiumField>
-              <PremiumField label="Género" icon={<Activity size={18} />}>
-                <select 
-                  className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 cursor-pointer"
-                  value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="M">Masculino</option>
-                  <option value="F">Femenino</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </PremiumField>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Field label="WhatsApp">
+            <input style={inputStyle} placeholder="+58 412..."
+              value={formData.whatsapp} onChange={e => set('whatsapp', e.target.value)} />
+          </Field>
+          <Field label="Correo Electrónico">
+            <input style={inputStyle} type="email" placeholder="paciente@mail.com"
+              value={formData.email} onChange={e => set('email', e.target.value)} />
+          </Field>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Field label="Fecha de Nacimiento" helper={age !== null ? `${age} años` : null}>
+            <input style={inputStyle} type="date"
+              value={formData.dob} onChange={e => set('dob', e.target.value)} />
+          </Field>
+          <Field label="Género">
+            <select style={{ ...inputStyle, cursor: 'pointer' }}
+              value={formData.gender} onChange={e => set('gender', e.target.value)}>
+              <option value="">Seleccionar...</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </Field>
+        </div>
+      </div>
+    );
+
+    if (activeTab === 'health') return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <Field label="Motivo Principal de Consulta">
+          <textarea
+            style={{ ...inputStyle, resize: 'none', height: '90px', paddingTop: '12px' }}
+            placeholder="¿Qué le trae hoy a consulta?"
+            value={formData.reason} onChange={e => set('reason', e.target.value)}
+          />
+        </Field>
+
+        <Field label="Alertas Médicas">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+            {flagsOptions.map(flag => {
+              const active = formData.flags.includes(flag);
+              return (
+                <button key={flag} onClick={() => toggleFlag(flag)} style={{
+                  padding: '8px 14px',
+                  borderRadius: '999px',
+                  border: `2px solid ${active ? '#f43f5e' : '#e2e8f0'}`,
+                  background: active ? '#fff1f2' : '#f8fafc',
+                  color: active ? '#f43f5e' : '#64748b',
+                  fontSize: '10px', fontWeight: 900,
+                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  {active ? <Check size={10} strokeWidth={3} /> : <div style={{ width: 8, height: 8, borderRadius: '50%', border: '2px solid #cbd5e1' }} />}
+                  {flag}
+                </button>
+              );
+            })}
           </div>
-        );
-      case 'health':
-        return (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-500">
-            <PremiumField label="Motivo de Consulta" icon={<ClipboardList size={18} />}>
-              <textarea 
-                className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300 resize-none h-20 pt-2"
-                placeholder="¿Qué le trae hoy a consulta?"
-                value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})}
-              />
-            </PremiumField>
+        </Field>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Alertas Médicas (Badges)</label>
-              <div className="flex flex-wrap gap-2">
-                {flagsOptions.map(flag => (
-                  <button
-                    key={flag}
-                    className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-tight transition-all border-none cursor-pointer flex items-center gap-1.5 ${formData.flags.includes(flag) ? 'bg-rose-500 text-white shadow-md shadow-rose-200' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                    onClick={() => toggleFlag(flag)}
-                  >
-                    {formData.flags.includes(flag) ? <Zap size={12} /> : <div className="w-2.5 h-2.5 rounded-full border border-slate-200"></div>}
-                    {flag}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <ToggleCard label="Fuma" sublabel="Factor de riesgo" icon={Info} active={formData.fuma} color="#f43f5e"
+            onClick={() => set('fuma', !formData.fuma)} />
+          <ToggleCard label="Bruxismo" sublabel="Desgaste dental" icon={Activity} active={formData.bruxismo} color="#2563eb"
+            onClick={() => set('bruxismo', !formData.bruxismo)} />
+        </div>
+      </div>
+    );
 
-            <div className="grid grid-cols-2 gap-3 mt-1">
-               <div 
-                 onClick={() => setFormData({...formData, fuma: !formData.fuma})}
-                 className={`flex justify-between items-center p-3 rounded-2xl border transition-all cursor-pointer ${formData.fuma ? 'bg-rose-50 border-rose-100 shadow-sm' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}
-               >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-xl bg-white flex items-center justify-center ${formData.fuma ? 'text-rose-500' : 'text-slate-300'}`}>
-                      <Info size={14} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight">Fuma</span>
-                      <span className="text-[7px] text-rose-400 font-bold uppercase tracking-widest">Riesgo</span>
-                    </div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${formData.fuma ? 'bg-rose-500 border-rose-500' : 'border-slate-200'}`}>
-                    {formData.fuma && <Check size={12} className="text-white" />}
-                  </div>
-               </div>
-               <div 
-                 onClick={() => setFormData({...formData, bruxismo: !formData.bruxismo})}
-                 className={`flex justify-between items-center p-3 rounded-2xl border transition-all cursor-pointer ${formData.bruxismo ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}
-               >
-                  <div className="items-center flex gap-2">
-                    <div className={`w-8 h-8 rounded-xl bg-white flex items-center justify-center ${formData.bruxismo ? 'text-primary' : 'text-slate-300'}`}>
-                      <Activity size={14} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight">Bruxismo</span>
-                      <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Desgaste</span>
-                    </div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${formData.bruxismo ? 'bg-primary border-primary' : 'border-slate-200'}`}>
-                    {formData.bruxismo && <Check size={12} className="text-white" />}
-                  </div>
-               </div>
-            </div>
-          </div>
-        );
-      case 'history':
-        return (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-500">
-             <div className="flex flex-col gap-3">
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-1">Anamnesis y Antecedentes</h3>
-                
-                {/* Asma destacado */}
-                <PremiumField label="Asma / Problemas Respiratorios" icon={<Activity size={16} className="text-rose-500" />}>
-                  <select className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 cursor-pointer">
-                    <option value="">Seleccionar...</option>
-                    <option value="No">No</option>
-                    <option value="Leve">Sí, Leve</option>
-                    <option value="Grave">Sí, Grave</option>
-                  </select>
-                </PremiumField>
+    if (activeTab === 'history') return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: '16px', background: '#eff6ff', borderRadius: '16px', border: '1px solid #dbeafe' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#3b82f6', lineHeight: 1.5 }}>
+            Esta información clínica es confidencial y sólo accesible al equipo médico. Complétala con cuidado para garantizar tratamientos seguros.
+          </p>
+        </div>
 
-                <PremiumField label="Antecedentes Cardíacos" icon={<Heart size={16} className="text-rose-500" />}>
-                  <select className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 cursor-pointer">
-                    <option value="">Seleccionar...</option>
-                    <option value="No">No</option>
-                    <option value="Si">Sí</option>
-                  </select>
-                </PremiumField>
-                
-                <PremiumField label="Problemas de Coagulación" icon={<AlertCircle size={16} className="text-rose-500" />}>
-                  <select className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 cursor-pointer">
-                    <option value="">Seleccionar...</option>
-                    <option value="No">No</option>
-                    <option value="Si">Sí</option>
-                  </select>
-                </PremiumField>
+        {[
+          { label: 'Asma / Problemas Respiratorios', icon: Activity },
+          { label: 'Antecedentes Cardíacos', icon: Heart },
+          { label: 'Problemas de Coagulación', icon: AlertCircle },
+        ].map(({ label, icon: Icon }) => (
+          <Field key={label} label={label}>
+            <select style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="">Seleccionar...</option>
+              <option value="No">No</option>
+              <option value="Leve">Sí, Leve</option>
+              <option value="Grave">Sí, Grave / Confirmado</option>
+            </select>
+          </Field>
+        ))}
 
-                <PremiumField label="Otros Antecedentes (Opcional)" icon={<ClipboardList size={16} />}>
-                  <textarea 
-                    className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300 resize-none h-16 pt-2"
-                    placeholder="Especifique cualquier otra condición médica..."
-                  />
-                </PremiumField>
-             </div>
-          </div>
-        );
-      default: return null;
-    }
+        <Field label="Otros Antecedentes (Opcional)">
+          <textarea
+            style={{ ...inputStyle, resize: 'none', height: '80px', paddingTop: '12px' }}
+            placeholder="Especifique cualquier otra condición médica relevante..."
+          />
+        </Field>
+      </div>
+    );
   };
 
   return (
-    <div className="flex flex-col max-h-[85vh] bg-white px-2 relative">
-      <div className="flex-shrink-0">
-        {/* High-End Modal Header */}
-        <div className="flex justify-between items-start mb-6 pt-2">
-          <div className="flex flex-col">
-             <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center text-white">
-                   <Zap size={14} />
-                </div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Smart Registration</h2>
-             </div>
-             <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase tracking-widest">Versión 2.0</span>
-                <span className="text-[9px] font-bold text-slate-400">Nivel Actual: {activeTab === 'core' ? '1. Datos Críticos' : activeTab === 'health' ? '2. Diagnóstico' : '3. Historia Médica'}</span>
-             </div>
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      height: '100%', background: '#fff', overflow: 'hidden',
+    }}>
+      {/* ── Header ── */}
+      <div style={{
+        padding: '28px 28px 0',
+        background: '#fff',
+        borderBottom: '1px solid #f1f5f9',
+        paddingBottom: '20px',
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 40, height: 40, background: 'var(--primary)',
+                borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 20px rgba(37,99,235,0.3)',
+              }}>
+                <UserPlus size={20} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h2 style={{ fontSize: '1.375rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  Nuevo Paciente
+                </h2>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 4 }}>
+                  Registro Clínico Completo
+                </span>
+              </div>
+            </div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 flex items-center justify-center rounded-2xl transition-all border-none cursor-pointer">
-            <X size={20} className="text-slate-400" />
+          <button
+            onClick={() => { sfx.cancel(); onClose(); }}
+            style={{
+              width: 38, height: 38, background: '#f8fafc',
+              border: '2px solid #f1f5f9', borderRadius: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', transition: 'all 0.15s',
+              color: '#94a3b8',
+            }}
+          >
+            <X size={18} strokeWidth={2.5} />
           </button>
         </div>
 
-        {/* Premium Stepper Indicator */}
-        <div className="flex items-center gap-3 mb-6">
-           {[
-             { id: 'core', l: 'Identidad' },
-             { id: 'health', l: 'Salud' },
-             { id: 'history', l: 'Historia' }
-           ].map((s, i) => (
-             <div key={s.id} className="flex-1 flex flex-col gap-2">
-                <div className={`h-1.5 rounded-full transition-all duration-700 ${
-                  (activeTab === 'core' && i === 0) || 
-                  (activeTab === 'health' && i <= 1) || 
-                  (activeTab === 'history') 
-                    ? 'bg-primary' : 'bg-slate-100'
-                }`}></div>
-                <span className={`text-[8px] font-black uppercase tracking-tighter text-center transition-all ${
-                   (activeTab === s.id) ? 'text-primary' : 'text-slate-300'
-                }`}>{s.l}</span>
-             </div>
-           ))}
+        {/* Stepper */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {steps.map((s, i) => {
+            const done = i < stepIndex;
+            const active = i === stepIndex;
+            return (
+              <div key={s.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{
+                  height: 4, borderRadius: 999,
+                  background: done || active ? 'var(--primary)' : '#e2e8f0',
+                  transition: 'all 0.5s',
+                  opacity: done ? 0.5 : 1,
+                }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: done ? 'var(--primary)' : active ? 'var(--primary)' : '#e2e8f0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.3s',
+                  }}>
+                    {done
+                      ? <Check size={9} color="#fff" strokeWidth={3} />
+                      : <span style={{ fontSize: '7px', fontWeight: 900, color: active ? '#fff' : '#94a3b8' }}>{s.num}</span>
+                    }
+                  </div>
+                  <span style={{
+                    fontSize: '9px', fontWeight: 900, textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    color: active ? 'var(--primary)' : done ? '#94a3b8' : '#cbd5e1',
+                    transition: 'all 0.3s',
+                  }}>
+                    {s.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-4 min-h-0">
-        {renderTabContent()}
+      {/* ── Content ── */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '24px 28px',
+        scrollbarWidth: 'thin',
+      }}>
+        {renderContent()}
       </div>
 
-      {/* Sticky Footer for Action Buttons */}
-      <div className="flex-shrink-0 pt-5 pb-2 mt-auto bg-white z-10 border-t border-slate-50">
+      {/* ── Footer ── */}
+      <div style={{
+        flexShrink: 0,
+        padding: '16px 28px 24px',
+        borderTop: '1px solid #f1f5f9',
+        background: '#fff',
+      }}>
         {activeTab === 'core' && (
-          <button 
-            className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-primary/10 border-none cursor-pointer flex items-center justify-center gap-2"
-            onClick={() => setActiveTab('health')}
+          <button
+            onClick={() => { sfx.click(); setActiveTab('health'); }}
+            style={{
+              width: '100%', padding: '16px',
+              background: 'var(--primary)', color: '#fff',
+              border: 'none', borderRadius: 16,
+              fontSize: '11px', fontWeight: 900,
+              textTransform: 'uppercase', letterSpacing: '0.15em',
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 8px 24px rgba(37,99,235,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
           >
-            Siguiente Paso <Info size={14} />
+            Continuar — Salud <ChevronRight size={14} strokeWidth={3} />
           </button>
         )}
         {activeTab === 'health' && (
-          <div className="flex gap-3">
-            <button className="flex-1 py-4 bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all border-none cursor-pointer" onClick={() => setActiveTab('core')}>Volver</button>
-            <button 
-              className="flex-1 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 border-none cursor-pointer"
-              onClick={() => setActiveTab('history')}
-            >
-              Siguiente Paso
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => { sfx.navigate(); setActiveTab('core'); }} style={{
+              flex: 1, padding: '16px', background: '#f1f5f9',
+              color: '#64748b', border: 'none', borderRadius: 16,
+              fontSize: '11px', fontWeight: 900, textTransform: 'uppercase',
+              letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.2s',
+            }}>Volver</button>
+            <button onClick={() => { sfx.click(); setActiveTab('history'); }} style={{
+              flex: 2, padding: '16px', background: '#0f172a',
+              color: '#fff', border: 'none', borderRadius: 16,
+              fontSize: '11px', fontWeight: 900, textTransform: 'uppercase',
+              letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 8px 24px rgba(15,23,42,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              Continuar — Historia <ChevronRight size={14} strokeWidth={3} />
             </button>
           </div>
         )}
         {activeTab === 'history' && (
-          <div className="flex gap-3">
-            <button className="flex-1 py-4 bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all border-none cursor-pointer" onClick={() => setActiveTab('health')}>Atrás</button>
-            <button 
-              className="flex-1 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-primary/20 border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? <Loader2 className="animate-spin" size={14} /> : 'Guardar Paciente'}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => { sfx.navigate(); setActiveTab('health'); }} style={{
+              flex: 1, padding: '16px', background: '#f1f5f9',
+              color: '#64748b', border: 'none', borderRadius: 16,
+              fontSize: '11px', fontWeight: 900, textTransform: 'uppercase',
+              letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.2s',
+            }}>Volver</button>
+            <button onClick={handleSave} disabled={isSaving} style={{
+              flex: 2, padding: '16px',
+              background: isSaving ? '#94a3b8' : 'var(--primary)',
+              color: '#fff', border: 'none', borderRadius: 16,
+              fontSize: '11px', fontWeight: 900, textTransform: 'uppercase',
+              letterSpacing: '0.15em', cursor: isSaving ? 'default' : 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: isSaving ? 'none' : '0 8px 24px rgba(37,99,235,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              {isSaving
+                ? <><Loader2 size={14} className="animate-spin" /> Guardando...</>
+                : <><ShieldCheck size={14} strokeWidth={2.5} /> Registrar Paciente</>
+              }
             </button>
           </div>
         )}

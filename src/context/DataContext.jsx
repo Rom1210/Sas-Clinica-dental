@@ -201,6 +201,12 @@ export const DataProvider = ({ children }) => {
 
 
           
+          const getHHMMUTC = (iso) => {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+          };
+
           return {
             ...app,
             date: sDate,
@@ -209,9 +215,9 @@ export const DataProvider = ({ children }) => {
             doctorId: app.doctor_id,
             patientId: app.patient_id,
             blocks: sBlocks,
-            // Fallbacks for UI
-            startTime: sBlocks[0] || '',
-            endTime: sBlocks[sBlocks.length - 1] || '' 
+            // Consistently derived from UTC to match grid
+            startTime: getHHMMUTC(rawStartsAt),
+            endTime: getHHMMUTC(rawEndsAt)
           }
       }));
 
@@ -510,6 +516,17 @@ export const DataProvider = ({ children }) => {
     await fetchAllData();
   };
 
+  const updateAppointment = async (id, updateData) => {
+    const { data, error } = await supabase
+      .from('appointments')
+      .update(updateData)
+      .eq('id', id)
+      .select();
+    if (error) throw error;
+    await fetchAllData();
+    return data[0];
+  };
+
   const addConsultation = async (consultationData) => {
     const { data, error } = await supabase
       .from('consultations')
@@ -580,7 +597,7 @@ export const DataProvider = ({ children }) => {
       allPatients: patients, // includes archived — for finance/history views
       payments, addPayment,
       expenses, addExpense,
-      appointments, addAppointment,
+      appointments, addAppointment, updateAppointment,
       consultations, addConsultation,
       invoices, addInvoice,
       team, removeTeamMember,

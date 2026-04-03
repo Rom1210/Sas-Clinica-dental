@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, User, Clock, Calendar, CheckCircle, Plus, Trash2, Search, Stethoscope, ChevronDown, DollarSign } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 
-const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPatient = null }) => {
+const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPatient = null, preloadedServices = [], preselectedDoctorId = '' }) => {
   const { doctors, patients, services, addAppointment, addPatient } = useData();
   
   // Patient State
@@ -12,6 +12,7 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientPhone, setNewPatientPhone] = useState('');
   const [newPatientEmail, setNewPatientEmail] = useState('');
+  const [selectedSlots, setSelectedSlots] = useState([]);
   
   // Professional State
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
@@ -21,11 +22,13 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
 
   // Loading state
   const [isSaving, setIsSaving] = useState(false);
-
-  // Grouping Doctors with useMemo
+  
+  // Professional State
   const activeDoctors = useMemo(() => {
-    return (doctors || []).filter(d => (d.status || '').toLowerCase() === 'activo' || (d.status || '').toLowerCase() === 'active');
-  }, [doctors]);
+    const list = (doctors || []).filter(d => (d.status || '').toLowerCase() === 'activo' || (d.status || '').toLowerCase() === 'active');
+    // Filter out if by some mistake the patient is in the doctors list
+    return list.filter(d => d.id !== prefilledPatient?.id && d.id !== (selectedPatient?.id || ''));
+  }, [doctors, prefilledPatient?.id, selectedPatient?.id]);
 
   const generalists = useMemo(() => {
     return activeDoctors.filter(d => !d.isSpecialist);
@@ -51,13 +54,24 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
       setPatientSearch('');
     }
 
-    setNewPatientName('');
-    setNewPatientPhone('');
     setNewPatientEmail('');
-    setSelectedDoctorId('');
-    setSelectedServices([]);
+    setSelectedDoctorId(preselectedDoctorId || '');
+    
+    // Pre-populate services if available
+    if (preloadedServices && preloadedServices.length > 0) {
+      setSelectedServices(preloadedServices.map(s => ({
+        serviceId: s.id,
+        name: s.name,
+        qty: 1,
+        price: s.price,
+        subtotal: s.price
+      })));
+    } else {
+      setSelectedServices([]);
+    }
+    
     setIsSaving(false);
-  }, [isOpen, prefilledPatient, patients]);
+  }, [`${isOpen}-${prefilledPatient?.id}-${(patients || []).length}-${JSON.stringify(preloadedServices || [])}-${preselectedDoctorId}`]);
 
   const durationMin = selection ? selection.blocks.length * 15 : 0;
 

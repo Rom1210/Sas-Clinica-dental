@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { ArrowLeft, Search, Plus, Filter, Info, ChevronLeft, ChevronRight, CheckCircle2, FileText, User, AlertCircle, Activity, ClipboardList, Clock, Pencil, Download, ChevronDown, Calendar } from 'lucide-react';
@@ -63,7 +63,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       .map(c => ({
         id: `cons-${c.id}`,
         date: c.created_at,
-        label: c.treatment_summary || 'Consulta Clínica',
+        label: c.treatment_summary || 'Consulta Cl├¡nica',
         description: c.doctor?.full_name || 'Especialista',
         amount: c.amount || 0,
         type: 'charge',
@@ -83,7 +83,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
         status: 'Pagado'
       }));
 
-    // 3. Get Appointments as "Próximas/Activas"
+    // 3. Get Appointments as "Pr├│ximas/Activas"
     const now = new Date();
     const apps = allAppointments
       .filter(a => a.patient_id === patient.id)
@@ -175,7 +175,9 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
     }
   }, [patient]);
 
-  const tabs = ['General', 'Perfil', 'Historia médica', 'Historia de pago'];
+  const tabs = ['General', 'Perfil', 'Historia m├®dica', 'Historia de pago'];
+
+
   const PatientHistoryView = () => {
     const historicalItems = React.useMemo(() => {
       const cons = allConsultations
@@ -237,55 +239,72 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       return { total, last, specialists, nextApp };
     }, [historicalItems, allAppointments, patient]);
 
-    const PAGE_SIZE = 10;
-    const [page, setPage] = React.useState(1);
-    const totalPages = Math.max(1, Math.ceil(historicalItems.length / PAGE_SIZE));
-    const paged = historicalItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: '860px', margin: '0 auto', paddingTop: 8 }}>
-        {/* Header compacto */}
-        <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', flexShrink: 0 }}><Activity size={20} strokeWidth={2.5} /></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '11px', fontWeight: 900, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Historia Clínica</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#ecfdf5', padding: '2px 8px', borderRadius: '999px', border: '1px solid #d1fae5' }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                  <span style={{ fontSize: '9px', fontWeight: 900, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Activo</span>
-                </div>
+      <div className="flex flex-col gap-10 animate-in fade-in duration-500 max-w-5xl mx-auto py-4">
+        {/* Unified Clinical Header - Premium Glassmode (Light Glassmorphism) */}
+        <div className="relative overflow-hidden bg-white/60 backdrop-blur-3xl rounded-[2.5rem] p-10 shadow-[0_25px_80px_rgba(0,0,0,0.06),0_0_1px_rgba(0,0,0,0.1)] flex flex-col md:flex-row items-center justify-between gap-10 border border-white/50">
+           {/* Decorative elements - softer for light mode */}
+           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full -mr-32 -mt-32 blur-[120px] opacity-40"></div>
+           <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full -ml-20 -mb-20 blur-[100px] opacity-30"></div>
+
+           <div className="flex items-center gap-10 relative z-10 w-full md:w-auto">
+              <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center text-primary shadow-[0_15px_35px_rgba(37,99,235,0.12)] border border-white/80 scale-110">
+                 <Activity size={44} strokeWidth={2.5} />
               </div>
-              {historicalItems.length > 0 ? (
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>Último: <strong>{historicalItems[0].title.split(',')[0]}</strong> · <span style={{ color: '#94a3b8', fontWeight: 600 }}>{new Date(historicalItems[0].date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span></span>
-              ) : (<span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600 }}>Sin registros</span>)}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexShrink: 0 }}>
-            {insightsData.nextApp && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '6px 12px' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} />
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Próx. cita: {new Date(insightsData.nextApp.starts_at || insightsData.nextApp.start_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+              <div className="flex flex-col gap-3">
+                 <div className="flex items-center gap-4">
+                    <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.25em] drop-shadow-sm">Estado Cl├¡nico Integral</h3>
+                    <div className="h-px w-10 bg-primary/10"></div>
+                    <div className="flex items-center gap-2 py-1.5 px-4 bg-emerald-500/10 rounded-full border border-emerald-500/15 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]"></span>
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none">Activo</span>
+                    </div>
+                 </div>
+                 
+                 {historicalItems.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                        <p className="text-3xl font-black text-slate-900 leading-none tracking-tight">
+                           {historicalItems[0].title.split(',')[0]}
+                        </p>
+                        <p className="text-slate-500 text-sm font-bold flex items-center gap-2">
+                           ├Ültimo tr├ímite: <span className="text-slate-900">{new Date(historicalItems[0].date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span> con <span className="text-primary font-black uppercase text-[10px] tracking-wider">Dr. {historicalItems[0].doctor.replace('Dr. ', '').split(' ')[0]}</span>
+                        </p>
+                    </div>
+                 ) : (
+                    <p className="text-2xl font-black text-slate-400 italic">Sin registros registrados</p>
+                 )}
+
+                 {insightsData.nextApp && (
+                    <div className="flex items-center gap-3 text-[11px] font-black text-slate-700 uppercase tracking-wider bg-white/80 px-4 py-2.5 rounded-2xl border border-slate-100 shadow-sm w-fit transition-all hover:shadow-md">
+                       <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"></div>
+                       PR├ôXIMA CITA: <span className="text-slate-900">{new Date(insightsData.nextApp.starts_at || insightsData.nextApp.start_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                 )}
               </div>
-            )}
-            {[{ value: insightsData.total, label: 'Visitas' }, { value: insightsData.specialists, label: 'Drs.' }].map(({ value, label }) => (
-              <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: '22px', fontWeight: 900, color: '#0f172a', lineHeight: 1 }}>{value}</span>
-                <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.15em' }}>{label}</span>
+           </div>
+
+           <div className="flex items-center gap-14 relative z-10 pr-6 w-full md:w-auto justify-around md:justify-end">
+              <div className="flex flex-col items-center group transition-transform hover:scale-110">
+                 <span className="text-4xl font-black text-slate-900 leading-none">{insightsData.total}</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Visitas</span>
               </div>
-            ))}
-          </div>
+              <div className="w-px h-12 bg-slate-100 hidden md:block"></div>
+              <div className="flex flex-col items-center group transition-transform hover:scale-110">
+                 <span className="text-4xl font-black text-slate-900 leading-none">{insightsData.specialists}</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Drs.</span>
+              </div>
+           </div>
         </div>
 
-        {/* Timeline */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingLeft: 4 }}>
-            <span style={{ fontSize: '12px', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Cronología · {historicalItems.length} registros</span>
-            {totalPages > 1 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>Página {page} de {totalPages}</span>}
-          </div>
+        {/* Premium Timeline */}
+        <div className="flex flex-col gap-6 relative px-4 md:px-8">
+          <div className="absolute left-[31px] md:left-[47px] top-0 bottom-0 w-1 bg-slate-100 rounded-full"></div>
+          
+          <h2 className="text-2xl font-black text-slate-800 ml-12 md:ml-16 mb-2">Cronolog├¡a del Paciente</h2>
+
           {historicalItems.length === 0 ? (
             <div className="p-20 text-center bg-white rounded-3xl border border-slate-100 border-dashed text-slate-400 font-bold text-lg">
-              No hay historial clínico disponible.
+              No hay historial cl├¡nico disponible.
             </div>
           ) : (
             historicalItems.map((item, idx) => (
@@ -389,7 +408,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       </div>
 
       {/* Top Patient Info Card - Hidden in Medical/Ficha tabs to match clean layout */}
-      {activeTab !== 'Historia médica' && activeTab !== 'Ficha médica' && activeTab !== 'Perfil' && (
+      {activeTab !== 'Historia m├®dica' && activeTab !== 'Ficha m├®dica' && activeTab !== 'Perfil' && (
         <div className="bg-white rounded-2xl p-6 shadow-sm flex flex-col gap-6 border border-slate-100">
           <h2 className="text-xl font-bold text-slate-800">Paciente</h2>
           
@@ -407,22 +426,19 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
               <span className="text-base font-bold text-slate-800">{patient?.email || 'fabanplay@gmail.com'}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-sm text-slate-500">Número de teléfono</span>
+              <span className="text-sm text-slate-500">N├║mero de tel├®fono</span>
               <span className="text-base font-bold text-slate-800">04244570903</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: '16px', border: '1.5px dashed #e2e8f0', marginTop: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🔔</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: '#334155' }}>Recordatorios Automáticos por WhatsApp</span>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', lineHeight: 1.4 }}>El paciente recibirá un aviso 24h antes de cada cita automáticamente.</span>
+          <div className="flex flex-col gap-1 mt-2">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center w-5 h-5 border-2 border-slate-300 rounded overflow-hidden group-hover:border-[#0070AC] transition-colors">
+                <input type="checkbox" className="absolute w-full h-full opacity-0 cursor-pointer" />
               </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: '999px', flexShrink: 0 }}>
-              <span style={{ fontSize: '9px', fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.12em', whiteSpace: 'nowrap' }}>✦ Plan Superior</span>
-            </div>
+              <span className="text-sm text-slate-700 font-medium select-none text-slate-800">Activar recordatorios</span>
+            </label>
+            <span className="text-[11px] text-slate-500 ml-8">A este paciente se le enviar├í un recordatorio un d├¡a antes de cada una de sus consultas.</span>
           </div>
         </div>
       )}
@@ -526,7 +542,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
 
                 <div className="p-4 border-t border-slate-100 flex justify-end items-center gap-6 bg-white">
                   <div className="flex items-center gap-2 text-sm text-slate-600">
-                    Columnas por página
+                    Columnas por p├ígina
                     <select className="border-none bg-transparent font-medium focus:outline-none cursor-pointer">
                       <option>5</option>
                       <option>10</option>
@@ -578,7 +594,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
               <div className="flex justify-between items-start w-full">
                 <div className="flex flex-col gap-1">
                   <h2 className="text-[28px] font-bold text-slate-800 leading-tight">Perfil de paciente</h2>
-                  <p className="text-sm text-slate-400 font-medium">Información clínica base y antecedentes del paciente</p>
+                  <p className="text-sm text-slate-400 font-medium">Informaci├│n cl├¡nica base y antecedentes del paciente</p>
                 </div>
                 <button className="btn bg-brand-blue hover:bg-brand-blue-hover text-white px-6 py-2.5 rounded-lg flex items-center gap-2 border-none">
                   <Download size={16}/>
@@ -590,9 +606,9 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                 {/* Personal Information Section */}
                 <div className="flex flex-col gap-8">
                   <div className="flex justify-between items-center border-b border-slate-50 pb-4">
-                    <h3 className="text-lg font-bold text-slate-800">Información personal</h3>
+                    <h3 className="text-lg font-bold text-slate-800">Informaci├│n personal</h3>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Editar información personal</span>
+                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Editar informaci├│n personal</span>
                       {/* Robust Toggle Switch using standard CSS variables */}
                       <div 
                         onClick={() => setIsEditingPersonal(!isEditingPersonal)}
@@ -625,13 +641,13 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                       { label: 'NOMBRES', value: personalInfo.nombres, key: 'nombres' },
                       { label: 'APELLIDOS', value: personalInfo.apellidos, key: 'apellidos' },
                       { label: 'FECHA DE NACIMIENTO', value: personalInfo.fechaNacimiento, key: 'fechaNacimiento', placeholder: 'dd/mm/aaaa' },
-                      { label: 'GÉNERO', value: personalInfo.genero, key: 'genero', type: 'select', options: ['Hombre', 'Mujer', 'Otro'] },
+                      { label: 'G├ëNERO', value: personalInfo.genero, key: 'genero', type: 'select', options: ['Hombre', 'Mujer', 'Otro'] },
                       { label: 'LUGAR DE NACIMIENTO', value: personalInfo.lugarNacimiento, key: 'lugarNacimiento' },
-                      { label: 'CÉDULA DEL PACIENTE', value: personalInfo.cedula, key: 'cedula' },
-                      { label: 'CORREO ELECTRÓNICO', value: personalInfo.email, key: 'email', type: 'email' },
-                      { label: 'NÚMERO DE TELÉFONO', value: personalInfo.telefono, key: 'telefono' },
-                      { label: 'TELÉFONO DE EMERGENCIA', value: personalInfo.telefonoEmergencia, key: 'telefonoEmergencia' },
-                      { label: 'OCUPACIÓN', value: personalInfo.ocupacion, key: 'ocupacion' },
+                      { label: 'C├ëDULA DEL PACIENTE', value: personalInfo.cedula, key: 'cedula' },
+                      { label: 'CORREO ELECTR├ôNICO', value: personalInfo.email, key: 'email', type: 'email' },
+                      { label: 'N├ÜMERO DE TEL├ëFONO', value: personalInfo.telefono, key: 'telefono' },
+                      { label: 'TEL├ëFONO DE EMERGENCIA', value: personalInfo.telefonoEmergencia, key: 'telefonoEmergencia' },
+                      { label: 'OCUPACI├ôN', value: personalInfo.ocupacion, key: 'ocupacion' },
                     ].map((field) => (
                       <div key={field.key} className="flex flex-col gap-2 border-b border-slate-100 pb-2">
                         <label className="text-[10px] text-slate-400 font-black tracking-widest uppercase">{field.label}</label>
@@ -666,7 +682,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                     <div className="col-span-2 mt-4">
                        <div className="relative border border-slate-200 rounded-xl p-8 bg-slate-50/20">
                          <span className="absolute -top-3 left-6 bg-white px-2.5 text-[10px] text-slate-400 font-black tracking-widest uppercase">
-                           DIRECCIÓN DE RESIDENCIA
+                           DIRECCI├ôN DE RESIDENCIA
                          </span>
                          <textarea 
                            readOnly={!isEditingPersonal}
@@ -707,13 +723,13 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
           </div>
         )}
 
-        {activeTab === 'Historia médica' && (
+        {activeTab === 'Historia m├®dica' && (
           <PatientHistoryView />
         )}
 
-
         {activeTab === 'Historia de pago' && (
-          <>
+          <div className="flex flex-col gap-8 animate-in fade-in duration-300">
+            <h2 className="text-2xl font-bold text-slate-800">Historia de Pago</h2>
             
             {/* Quick Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -724,7 +740,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                   ${debtSummary.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                 </span>
                 <span className={`text-[10px] font-black uppercase tracking-tighter relative z-10 ${debtSummary.balance > 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
-                   {debtSummary.balance > 0 ? '• Acción requerida' : '• Estado solvente'}
+                   {debtSummary.balance > 0 ? 'ÔÇó Acci├│n requerida' : 'ÔÇó Estado solvente'}
                 </span>
               </div>
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-1 relative overflow-hidden group hover:shadow-xl transition-all">
@@ -802,7 +818,7 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
                 )}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
       
