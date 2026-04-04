@@ -246,11 +246,16 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-4 px-2 text-sm font-bold transition-all cursor-pointer bg-transparent border-none outline-none relative ${
+              className={`pb-4 px-2 text-sm font-bold transition-all cursor-pointer bg-transparent border-none outline-none relative flex items-center gap-2 ${
                 activeTab === tab ? 'text-[#0070AC]' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               {tab}
+              {(tab === 'Galería' || tab === 'Planes') && (
+                <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
+                  Pronto
+                </span>
+              )}
               {activeTab === tab && (
                 <motion.div 
                   layoutId="activeTab"
