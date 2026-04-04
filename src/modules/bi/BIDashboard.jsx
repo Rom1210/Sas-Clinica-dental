@@ -104,7 +104,7 @@ const CustomTooltip = ({ active, payload, label, formatPrice }) => {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const BIDashboard = () => {
-  const { stats, invoices, appointments, loading, updateAppointment } = useData();
+  const { stats, invoices, appointments, loading, updateAppointment, payments } = useData();
   const { formatPrice } = useSettings();
   const navigate = useNavigate();
 
@@ -126,23 +126,13 @@ const BIDashboard = () => {
 
   // ─── Chart Data Generator ───────────────────────────────────────────────
   const chartData = useMemo(() => {
-    if (!invoices) return [];
-
+    const safeInvoices = invoices || [];
     const getInvoiceTotal = (inv) => inv.total_amount || 0;
 
     if (viewMode === 'annual') {
-      return YEARS.map(year => ({
-        label: String(year),
-        value: invoices
-          .filter(inv => new Date(inv.created_at).getFullYear() === year)
-          .reduce((s, inv) => s + getInvoiceTotal(inv), 0)
-      }));
-    }
-
-    if (viewMode === 'month') {
       return MONTHS_SHORT.map((m, idx) => ({
         label: m,
-        value: invoices
+        value: safeInvoices
           .filter(inv => {
             const d = new Date(inv.created_at);
             return d.getFullYear() === selectedYear && d.getMonth() === idx;
@@ -151,14 +141,28 @@ const BIDashboard = () => {
       }));
     }
 
+    if (viewMode === 'month') {
+      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      return Array.from({ length: daysInMonth }, (_, i) => ({
+        label: String(i + 1),
+        value: safeInvoices
+          .filter(inv => {
+            const d = new Date(inv.created_at);
+            return d.getFullYear() === selectedYear
+              && d.getMonth() === selectedMonth
+              && d.getDate() === i + 1;
+          })
+          .reduce((s, inv) => s + getInvoiceTotal(inv), 0)
+      }));
+    }
+
     if (viewMode === 'week') {
-      // Days of the selected week
       const [start, end] = WEEKS[selectedWeek].range;
       return Array.from({ length: end - start + 1 }, (_, i) => {
         const day = start + i;
         return {
           label: String(day),
-          value: invoices
+          value: safeInvoices
             .filter(inv => {
               const d = new Date(inv.created_at);
               return d.getFullYear() === selectedYear 
@@ -174,7 +178,7 @@ const BIDashboard = () => {
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       return Array.from({ length: daysInMonth }, (_, i) => ({
         label: String(i + 1),
-        value: invoices
+        value: safeInvoices
           .filter(inv => {
             const d = new Date(inv.created_at);
             return d.getFullYear() === selectedYear
@@ -398,7 +402,7 @@ const BIDashboard = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               
               {/* Conditional Selectors */}
-              {(viewMode === 'day' || viewMode === 'week') && (
+              {(viewMode === 'day' || viewMode === 'week' || viewMode === 'month') && (
                 <Dropdown value={selectedMonth} options={monthOptions} onChange={setSelectedMonth} width={130} />
               )}
               
