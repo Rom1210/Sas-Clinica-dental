@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Link, Navigate, useSearchParams } from 'react-router-dom';
 import { 
   Users, 
   Calendar, 
@@ -9,7 +9,9 @@ import {
   Plus,
   LogOut,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  TrendingDown,
+  FileText
 } from 'lucide-react';
 
 // Context
@@ -148,13 +150,19 @@ const AppContent = () => {
       {/* Structured Main Content */}
       <main className="main-content-structured">
         <header className="flex justify-between items-center mb-8">
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#111827' }}>
-              {currentModule.label}
-            </h2>
-            <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
-              {dataLoading ? 'Actualizando datos...' : 'Gestión integral del centro odontológico'}
-            </p>
+          <div className="flex items-center gap-6">
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#111827' }}>
+                {currentModule.label}
+              </h2>
+              <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                {dataLoading ? 'Actualizando datos...' : 'Gestión integral del centro odontológico'}
+              </p>
+            </div>
+
+            {location.pathname === '/finance' && (
+              <ModuleSubNav />
+            )}
           </div>
           
           <div className="flex items-center gap-4">
@@ -254,6 +262,53 @@ const AppContent = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ModuleSubNav = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'accounts';
+
+  const tabs = [
+    { id: 'accounts', label: 'Cuentas', icon: <Users size={14} /> },
+    { id: 'expenses', label: 'Egresos', icon: <TrendingDown size={14} /> },
+    { id: 'invoices', label: 'Facturas', icon: <FileText size={14} /> },
+  ];
+
+  const activeIndex = tabs.findIndex(t => t.id === activeTab);
+
+  return (
+    <div className="relative flex bg-slate-100/60 p-1.5 rounded-full border border-slate-200/50 backdrop-blur-sm shadow-sm min-w-[340px]">
+      {/* Sliding Background Indicator */}
+      <div 
+        className="absolute top-1.5 bottom-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ease-out z-0"
+        style={{ 
+          width: `calc((100% - 12px) / 3)`,
+          left: `calc(6px + ${activeIndex} * (100% - 12px) / 3)`,
+        }}
+      />
+      
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setSearchParams({ tab: tab.id })}
+            className={`
+              relative z-10 flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border-none cursor-pointer transition-all duration-300
+              ${isActive ? 'text-primary' : 'text-slate-500 hover:text-slate-700'}
+            `}
+          >
+            <span className={`transition-all duration-300 ${isActive ? 'scale-110' : 'opacity-60'}`}>
+              {tab.icon}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 };
