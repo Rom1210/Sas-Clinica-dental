@@ -387,7 +387,14 @@ export const DataProvider = ({ children }) => {
           const amt = parseFloat(p.amount || 0);
           return s + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
         }, 0),
-        expenses: mExpenses.reduce((s, e) => s + (e.currency === 'USD' || !e.currency ? (parseFloat(e.amount) || 0) : (parseFloat(e.amount) || 0) / (exchangeRate || 45.50)), 0)
+        expenses: mExpenses.reduce((s, e) => {
+          if (e.amount_usd) return s + parseFloat(e.amount_usd);
+          if (e.exchange_rate && e.currency === 'VES') {
+            return s + (parseFloat(e.amount) / parseFloat(e.exchange_rate));
+          }
+          const amt = parseFloat(e.amount || 0);
+          return s + (e.currency === 'USD' || !e.currency ? amt : amt / (exchangeRate || 45.50));
+        }, 0)
       };
     });
 
@@ -408,7 +415,14 @@ export const DataProvider = ({ children }) => {
         return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
       }, 0),
       totalCuentasPorCobrar: patientBalances.reduce((sum, p) => sum + (p.debt || 0), 0),
-      totalEgresos: expenses.reduce((sum, e) => sum + (e.currency === 'USD' || !e.currency ? (parseFloat(e.amount) || 0) : (parseFloat(e.amount) || 0) / (exchangeRate || 45.50)), 0),
+      totalEgresos: expenses.reduce((sum, e) => {
+        if (e.amount_usd) return sum + parseFloat(e.amount_usd);
+        if (e.exchange_rate && e.currency === 'VES') {
+          return sum + (parseFloat(e.amount) / parseFloat(e.exchange_rate));
+        }
+        const amt = parseFloat(e.amount || 0);
+        return sum + (e.currency === 'USD' || !e.currency ? amt : amt / (exchangeRate || 45.50));
+      }, 0),
       extendedStats: {
         doctorPerformance,
         servicePopularity,

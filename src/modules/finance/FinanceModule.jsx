@@ -59,6 +59,8 @@ const FinanceModule = () => {
       description: formData.description,
       amount: parseFloat(formData.amount),
       currency: formData.currency,
+      exchange_rate: exchangeRate,
+      amount_usd: usdEquivalent,
       date: new Date().toISOString().split('T')[0]
     });
     setShowModal(null);
@@ -251,7 +253,7 @@ const FinanceModule = () => {
                     <td className="px-6 py-4 text-right">
                       <div className="flex flex-col items-end">
                         <span className="text-xs font-black text-rose-600">
-                          -{formatPrice(exp.currency === 'VES' ? (exp.amount / exchangeRate) : exp.amount)}
+                          -{formatPrice(exp.amount_usd || (exp.currency === 'VES' ? (exp.amount / (exp.exchange_rate || exchangeRate)) : exp.amount))}
                         </span>
                         {exp.currency === 'VES' && (
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
