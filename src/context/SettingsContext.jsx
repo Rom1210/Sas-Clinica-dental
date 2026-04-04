@@ -5,16 +5,25 @@ const SettingsContext = createContext();
 export const SettingsProvider = ({ children }) => {
   const [exchangeRate, setExchangeRate] = useState(45.50); // Default placeholder
   const [currency, setCurrency] = useState('USD'); // Default display currency
+  const [clinicName, setClinicName] = useState('SmartDental'); // Default clinic name
 
   // In a real app, this would fetch from the database 'settings' table
   useEffect(() => {
     const savedRate = localStorage.getItem('exchangeRate');
     if (savedRate) setExchangeRate(parseFloat(savedRate));
+
+    const savedClinic = localStorage.getItem('clinicName');
+    if (savedClinic) setClinicName(savedClinic);
   }, []);
 
   const updateExchangeRate = (rate) => {
     setExchangeRate(rate);
     localStorage.setItem('exchangeRate', rate);
+  };
+
+  const updateClinicName = (name) => {
+    setClinicName(name);
+    localStorage.setItem('clinicName', name);
   };
 
   const toggleCurrency = () => {
@@ -34,7 +43,9 @@ export const SettingsProvider = ({ children }) => {
       updateExchangeRate, 
       currency, 
       toggleCurrency,
-      formatPrice 
+      formatPrice,
+      clinicName,
+      updateClinicName
     }}>
       {children}
     </SettingsContext.Provider>

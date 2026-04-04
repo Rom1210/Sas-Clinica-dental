@@ -1,14 +1,29 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, TrendingDown, AlertCircle } from 'lucide-react';
+import { X, Plus, TrendingDown, AlertCircle, MessageCircle } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext';
 
 const FinancialDetailModal = ({ 
   activeDetail, setActiveDetail, 
   filteredInvoices, filteredExpenses, patientFinancials, 
   totalFilteredIncome, totalFilteredExpenses, safeStats,
-  formatPrice, navigate 
+  formatPrice: propFormatPrice, navigate 
 }) => {
+  const { clinicName, formatPrice: contextFormatPrice } = useSettings();
+  const formatPrice = propFormatPrice || contextFormatPrice;
+
   if (!activeDetail) return null;
+
+  const handleWhatsApp = (pf) => {
+    const phone = pf.whatsapp || pf.phone || '';
+    if (!phone) {
+       alert("Este paciente no tiene un número de contacto registrado.");
+       return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    const message = `Hola *${pf.name}*, te saludamos desde *${clinicName}*. Te recordamos que tienes un saldo pendiente de *${formatPrice(pf.balance)}*. ¿Podríamos coordinar para cancelarlo? Saludos.`;
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
 
   const getLabel = () => {
     switch(activeDetail) {
@@ -106,12 +121,20 @@ const FinancialDetailModal = ({
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                            <span style={{ fontSize: '13px', fontWeight: 900, color: '#334155' }}>{pf.name}</span>
-                           <button 
-                            onClick={() => { setActiveDetail(null); navigate(`/paciente/${pf.id}/estado-cuenta`); }}
-                            style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#2563eb', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: '0.05em' }}
-                          >
-                             Ver estado de cuenta
-                          </button>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <button 
+                                onClick={() => { setActiveDetail(null); navigate(`/paciente/${pf.id}/estado-cuenta`); }}
+                                style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#2563eb', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: '0.05em' }}
+                              >
+                                Ver estado
+                              </button>
+                              <button 
+                                onClick={() => handleWhatsApp(pf)}
+                                style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: '#10b981', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '3px' }}
+                              >
+                                <MessageCircle size={10} /> WhatsApp
+                              </button>
+                           </div>
                         </div>
                      </div>
                      <span style={{ fontSize: '14px', fontWeight: 900, color: '#e11d48', letterSpacing: '-0.02em' }}>{formatPrice(pf.balance)}</span>

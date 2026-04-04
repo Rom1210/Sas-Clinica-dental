@@ -17,6 +17,7 @@ import {
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
+import { SettingsProvider } from './context/SettingsContext';
 
 // Components
 import Login from './components/auth/Login';
@@ -314,11 +315,13 @@ const ModuleSubNav = () => {
 };
 
 const App = () => (
-  <AuthProvider>
-    <DataProvider>
-      <AppContent />
-    </DataProvider>
-  </AuthProvider>
+  <SettingsProvider>
+    <AuthProvider>
+      <DataProvider>
+        <AppContent />
+      </DataProvider>
+    </AuthProvider>
+  </SettingsProvider>
 );
 
 export default App;

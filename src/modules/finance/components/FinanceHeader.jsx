@@ -61,13 +61,41 @@ const FinanceHeader = ({
   selectedYear, setSelectedYear, 
   selectedWeek, setSelectedWeek, 
   monthOptions, yearOptions, WEEKS, tabs, tabLabels, now,
-  setShowModal, setShowPaymentModal, activeTab
+  setShowModal, setShowPaymentModal, activeTab, setActiveTab, exchangeRate
 }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px', marginBottom: '8px' }}>
        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase leading-none">Finanzas</h2>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestión de caja y balance operativo</p>
+          <div className="flex items-center gap-3">
+             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestión de caja y balance operativo</p>
+             <div className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                Tasa: {exchangeRate || '45.50'} BS/$
+             </div>
+          </div>
+       </div>
+
+       {/* Module Navigation Tabs (Saldos, Facturas, Egresos) */}
+       <div style={{ display: 'flex', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '14px', gap: '2px' }}>
+          {[
+            { id: 'accounts', label: 'Saldos' },
+            { id: 'invoices', label: 'Facturas' },
+            { id: 'expenses', label: 'Egresos' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '8px 20px', borderRadius: '10px', border: 'none', fontSize: '10px', fontWeight: 900,
+                textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all 0.2s',
+                backgroundColor: activeTab === tab.id ? '#2563eb' : 'transparent',
+                color: activeTab === tab.id ? 'white' : '#64748b',
+                boxShadow: activeTab === tab.id ? '0 4px 12px rgba(37, 99, 235, 0.2)' : 'none'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
        </div>
 
        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

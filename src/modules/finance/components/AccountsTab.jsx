@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Search, User as UserIcon, CheckCircle, AlertCircle, ChevronRight, Users } from 'lucide-react';
+import { History, Search, User as UserIcon, CheckCircle, AlertCircle, ChevronRight, Users, MessageCircle } from 'lucide-react';
 
 const AccountsTab = ({ patientFinancials, searchTerm, setSearchTerm, navigate, formatPrice }) => {
   return (
@@ -82,8 +82,23 @@ const AccountsTab = ({ patientFinancials, searchTerm, setSearchTerm, navigate, f
                          </span>
                       </td>
                      <td style={{ padding: '20px 40px', textAlign: 'right' }}>
-                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-300 group-hover:bg-primary group-hover:text-white transition-all transform group-hover:translate-x-1">
-                          <ChevronRight size={16} />
+                        <div className="flex items-center justify-end gap-3">
+                          {pf.balance > 1 && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const msg = `Hola ${pf.name}, te saludamos de la Clínica Sas. Te escribimos para recordarte amablemente que tienes un saldo pendiente de ${formatPrice(pf.balance)}. ¡Feliz día!`;
+                                window.open(`https://wa.me/${pf.phone || ''}?text=${encodeURIComponent(msg)}`, '_blank');
+                              }}
+                              title="Notificar Cobro"
+                              className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                            >
+                              <MessageCircle size={14} fill="currentColor" className="fill-transparent group-hover:fill-white" />
+                            </button>
+                          )}
+                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-300 group-hover:bg-primary group-hover:text-white transition-all transform group-hover:translate-x-1">
+                            <ChevronRight size={16} />
+                          </div>
                         </div>
                      </td>
                   </tr>

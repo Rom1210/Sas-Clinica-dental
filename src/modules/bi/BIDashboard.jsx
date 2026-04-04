@@ -102,9 +102,12 @@ const CustomTooltip = ({ active, payload, label, formatPrice }) => {
   return null;
 };
 
+// Modules
+import FinancialDetailModal from '../finance/components/FinancialDetailModal';
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 const BIDashboard = () => {
-  const { stats, invoices, appointments, loading, updateAppointment, payments } = useData();
+  const { stats, invoices, appointments, loading, updateAppointment, payments, patients } = useData();
   const { formatPrice } = useSettings();
   const navigate = useNavigate();
 
@@ -119,10 +122,14 @@ const BIDashboard = () => {
   const [reasonText, setReasonText] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Financial Detail Modal State
+  const [activeDetail, setActiveDetail] = useState(null);
+
   const monthOptions = MONTHS.map((m, i) => ({ label: m, value: i }));
   const yearOptions = YEARS.map(y => ({ label: String(y), value: y }));
   const tabs = ['day', 'week', 'month', 'annual'];
   const tabLabels = { day: 'Día', week: 'Semana', month: 'Mes', annual: 'Anual' };
+
 
   // ─── Chart Data Generator ───────────────────────────────────────────────
   const chartData = useMemo(() => {
@@ -251,6 +258,29 @@ const BIDashboard = () => {
     return -1;
   }, [viewMode, selectedMonth, selectedYear, selectedWeek, now]);
 
+  // --- Dynamic KPI Stats (Synchronized with Time Travel) ---
+  const filteredKPIStats = useMemo(() => {
+    const periodInvoices = (invoices || []).filter(inv => {
+      const d = new Date(inv.created_at);
+      if (viewMode === 'annual') return d.getFullYear() === selectedYear;
+      return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+    });
+
+    const periodPatients = (patients || []).filter(p => {
+      const d = new Date(p.created_at);
+      if (viewMode === 'annual') return d.getFullYear() === selectedYear;
+      return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+    });
+
+    const income = periodInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+    
+    return {
+      income,
+      patientsCount: periodPatients.length,
+      conversionRate: stats.conversionRate || 0
+    };
+  }, [invoices, patients, viewMode, selectedMonth, selectedYear, stats.conversionRate]);
+
   const upcomingAppointments = useMemo(() => {
     if (!appointments) return [];
     const nw = new Date();
@@ -286,33 +316,31 @@ const BIDashboard = () => {
   };
 
   const handleGlobalReminders = () => {
-    // Implement global reminders logic or leave empty for now
-    console.log("Global reminders triggered");
-    alert("Función de recordatorios globales próximamente disponible");
+    setActiveDetail('receivables');
   };
 
   const kpis = [
     {
-      label: 'Ingresos Mensuales',
-      val: formatPrice(stats.currentIncome),
-      change: stats.incomeTrend >= 0 ? `+${stats.incomeTrend.toFixed(1)}%` : `${stats.incomeTrend.toFixed(1)}%`,
-      positive: stats.incomeTrend >= 0,
+      label: viewMode === 'annual' ? `Ingresos ${selectedYear}` : `Ingresos ${MONTHS[selectedMonth]}`,
+      val: formatPrice(filteredKPIStats?.income || 0),
+      change: (stats?.incomeTrend || 0) >= 0 ? `+${(stats?.incomeTrend || 0).toFixed(1)}%` : `${(stats?.incomeTrend || 0).toFixed(1)}%`,
+      positive: (stats?.incomeTrend || 0) >= 0,
       icon: <DollarSign size={20} />,
       iconBg: '#ECFDF5',
       iconColor: '#059669',
     },
     {
       label: 'Pacientes Nuevos',
-      val: String(stats.newPatientsCount),
-      change: stats.newPatientsTrend >= 0 ? `+${stats.newPatientsTrend}` : `${stats.newPatientsTrend}`,
-      positive: stats.newPatientsTrend >= 0,
+      val: String(filteredKPIStats?.patientsCount || 0),
+      change: (stats?.newPatientsTrend || 0) >= 0 ? `+${stats?.newPatientsTrend || 0}` : `${stats?.newPatientsTrend || 0}`,
+      positive: (stats?.newPatientsTrend || 0) >= 0,
       icon: <Users size={20} />,
       iconBg: '#EFF6FF',
       iconColor: '#2563EB',
     },
     {
       label: 'Tasa de Conversión',
-      val: `${stats.conversionRate}%`,
+      val: `${stats?.conversionRate || 0}%`,
       change: 'Real',
       positive: true,
       isLabel: true,
@@ -564,16 +592,16 @@ const BIDashboard = () => {
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              {stats.debtors.length > 0 ? stats.debtors.slice(0, 5).map((d, i) => (
+              {(stats?.debtors || []).length > 0 ? (stats?.debtors || []).slice(0, 5).map((d, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B' }}>{d.name}</div>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 600, color: d.balance > 500 ? '#EF4444' : '#94A3B8', marginTop: '1px' }}>
-                      {new Date(d.lastMovement).toLocaleDateString()}
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B' }}>{d?.name || 'Paciente'}</div>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 600, color: (d?.balance || 0) > 500 ? '#EF4444' : '#94A3B8', marginTop: '1px' }}>
+                      {d?.lastMovement ? new Date(d.lastMovement).toLocaleDateString() : 'Sin fecha'}
                     </div>
                   </div>
                   <span style={{ fontSize: '0.875rem', fontWeight: 800, color: '#DC2626' }}>
-                    {formatPrice(d.balance)}
+                    {formatPrice(d?.balance || 0)}
                   </span>
                 </div>
               )) : (
@@ -606,12 +634,12 @@ const BIDashboard = () => {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {app.patient?.full_name || app.patient?.first_name || app.patientName || 'Paciente'}
+                      {app?.patient?.full_name || app?.patient?.first_name || app?.patientName || 'Paciente'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
                       <Clock size={10} style={{ color: '#2563EB' }} />
                       <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#64748B' }}>
-                        {new Date(app.starts_at || app.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {app.doctor?.full_name?.split(' ')[0] || app.doctorName || 'Dr.'}
+                        {app?.starts_at ? new Date(app.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'} • {app?.doctor?.full_name?.split(' ')[0] || app?.doctorName || 'Dr.'}
                       </span>
                     </div>
                   </div>
@@ -750,6 +778,18 @@ const BIDashboard = () => {
           </div>
         </div>
       )}
+      {/* Financial Detail Modal Port */}
+      <FinancialDetailModal 
+        activeDetail={activeDetail} 
+        setActiveDetail={setActiveDetail}
+        filteredInvoices={invoices || []} 
+        filteredExpenses={[]} 
+        patientFinancials={patients || []} 
+        totalFilteredIncome={stats?.income || 0} 
+        totalFilteredExpenses={0} 
+        safeStats={stats || {}}
+        navigate={navigate}
+      />
     </div>
   );
 };

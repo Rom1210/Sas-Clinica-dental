@@ -178,27 +178,9 @@ const FinanceModule = () => {
         WEEKS={WEEKS} tabs={tabs} tabLabels={tabLabels} now={now}
         setShowModal={setShowModal} setShowPaymentModal={setShowPaymentModal}
         activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        exchangeRate={exchangeRate}
       />
-
-      {/* Tabs Mastery */}
-      <div className="flex items-center gap-8 border-b border-slate-100 mb-2 overflow-x-auto no-scrollbar">
-        {[
-          { id: 'accounts', label: 'Saldos de Pacientes', icon: <Users size={16} /> },
-          { id: 'invoices', label: 'Historial de Facturación', icon: <History size={16} /> },
-          { id: 'expenses', label: 'Control de Egresos', icon: <TrendingDown size={16} /> }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 pb-4 text-[11px] font-black uppercase tracking-widest transition-all relative ${
-              activeTab === tab.id ? 'text-primary' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            {tab.label}
-            {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-in slide-in-from-left duration-300" />}
-          </button>
-        ))}
-      </div>
 
       {activeTab === 'accounts' && (
         <>

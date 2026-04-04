@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../../context/SettingsContext';
@@ -11,12 +11,40 @@ import {
    BarChart3,
    Settings,
    LogOut,
-   ChevronRight
+   ChevronRight,
+   Building2,
+   CheckCircle,
+   Smartphone,
+   Camera,
+   CreditCard
 } from 'lucide-react';
+import SubscriptionModal from '../subscription/SubscriptionModal';
 
 const AccountPanel = ({ isOpen, onClose, profile, onLogout }) => {
    const navigate = useNavigate();
-   const { exchangeRate } = useSettings();
+   const { exchangeRate, clinicName, updateClinicName } = useSettings();
+   const [tempClinicName, setTempClinicName] = useState(clinicName);
+   const [isUpdating, setIsUpdating] = useState(false);
+   const [showSuccess, setShowSuccess] = useState(false);
+   const [showSubscription, setShowSubscription] = useState(false);
+
+   const authorizedRoles = ['owner', 'admin', 'administrador', 'secretaria', 'receptionist'];
+   const currentRole = profile?.role || 'Administrador';
+   const isAuthorized = authorizedRoles.includes(currentRole.toLowerCase());
+
+   useEffect(() => {
+      setTempClinicName(clinicName);
+   }, [clinicName]);
+
+   const handleUpdateClinic = () => {
+      setIsUpdating(true);
+      updateClinicName(tempClinicName);
+      setTimeout(() => {
+         setIsUpdating(false);
+         setShowSuccess(true);
+         setTimeout(() => setShowSuccess(false), 3000);
+      }, 600);
+   };
 
    const quickStats = useMemo(
       () => ({
@@ -37,191 +65,317 @@ const AccountPanel = ({ isOpen, onClose, profile, onLogout }) => {
       <div className="account-panel-root" style={{ position: 'relative', zIndex: 10000 }}>
          {/* Fixed Overlay Backdrop */}
          <div 
-            className="fixed inset-0 bg-slate-900/10" 
+            className="fixed inset-0" 
             onClick={onClose} 
             style={{ 
                position: 'fixed',
-               top: 0,
-               right: 0,
-               bottom: 0,
-               left: 0,
-               backgroundColor: 'rgba(15, 23, 42, 0.1)',
-               backdropFilter: 'blur(10px)', 
-               WebkitBackdropFilter: 'blur(10px)',
+               inset: 0,
+               backgroundColor: 'rgba(15, 23, 42, 0.15)',
+               backdropFilter: 'blur(12px)', 
+               WebkitBackdropFilter: 'blur(12px)',
                zIndex: 10000,
-               cursor: 'pointer'
+               transition: 'all 0.3s ease'
             }}
          />
          
-         {/* Floating Drawer Container - Robust Inline Styles for Positioning */}
+         {/* Floating Drawer Container */}
          <div 
-            className="flex flex-col overflow-hidden animate-in slide-in-from-right duration-300"
+            className="flex flex-col overflow-hidden animate-in slide-in-from-right duration-500 cubic-bezier(0.16, 1, 0.3, 1)"
             style={{ 
                position: 'fixed',
-               top: '24px',
-               right: '24px',
-               bottom: '24px',
-               width: '430px',
+               top: '0',
+               right: '0',
+               bottom: '0',
+               width: '440px',
                backgroundColor: '#ffffff',
-               borderRadius: '48px',
-               boxShadow: '0 40px 100px -10px rgba(0,0,0,0.15)',
+               borderRadius: '40px 0 0 40px',
+               boxShadow: '0 50px 100px -20px rgba(15, 23, 42, 0.2)',
                zIndex: 10001,
                display: 'flex',
                flexDirection: 'column',
-               border: 'none',
+               border: '1px solid rgba(255, 255, 255, 0.8)',
                outline: 'none',
-               pointerEvents: 'auto'
             }}
          >
             {/* Header */}
-            <div className="flex items-center justify-between px-10 pt-12 pb-6">
-               <h2 className="text-[28px] font-black tracking-tight text-slate-900 leading-none">
+            <div className="flex items-center px-10 pt-8 pb-3">
+               <div style={{ flex: 1 }} />
+               <h2 style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.03em', color: '#0F172A', margin: 0, textAlign: 'center' }}>
                   Mi cuenta
                </h2>
-
-               <button
-                  onClick={onClose}
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300 transition hover:bg-slate-100 hover:text-slate-900 border-none outline-none cursor-pointer"
-               >
-                  <X size={26} strokeWidth={2.5} />
-               </button>
+               <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                     onClick={onClose}
+                     style={{ 
+                        width: '48px', height: '48px', borderRadius: '50%', 
+                        background: '#F8FAFC', color: '#94A3B8', border: 'none', 
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', 
+                        justifyContent: 'center', transition: 'all 0.2s',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                     }}
+                     onMouseOver={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#1E293B'; }}
+                     onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#94A3B8'; }}
+                  >
+                     <X size={24} strokeWidth={2.5} />
+                  </button>
+               </div>
             </div>
 
-            {/* Contenido Scrollable */}
-            <div className="flex-1 overflow-y-auto px-10 pb-10 scrollbar-hide">
+            {/* Content Scrollable */}
+            <div className="flex-1 overflow-y-auto px-10 pb-24 custom-scrollbar">
                
-               {/* Perfil */}
-               <div className="flex flex-col items-center">
-                  <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-slate-50 text-[32px] font-black text-slate-300">
+               {/* Profile Section */}
+               <div className="flex flex-col items-center mt-2">
+                  <div style={{ 
+                     width: '90px', height: '90px', borderRadius: '36px', 
+                     background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)', 
+                     color: '#94A3B8', display: 'flex', alignItems: 'center', 
+                     justifyContent: 'center', fontSize: '30px', fontWeight: 900,
+                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)', marginBottom: '16px',
+                     border: '1px solid #F1F5F9'
+                  }}>
                      {initials}
                   </div>
                   
-                  <h3 className="text-[26px] font-black tracking-tight text-slate-900 leading-tight">
+                  <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#1E293B', textAlign: 'center', margin: 0, letterSpacing: '-0.02em' }}>
                      {displayName}
                   </h3>
                   
-                  <p className="mt-1 text-[16px] font-medium text-slate-400">
+                  <p style={{ fontSize: '15px', color: '#64748B', fontWeight: 500, marginTop: '4px', textAlign: 'center', margin: '4px 0 0 0' }}>
                      {displayEmail}
                   </p>
                   
-                  <div className="mt-5 px-6 py-2 rounded-full bg-slate-50 text-[10px] font-bold tracking-[0.25em] text-slate-300 uppercase">
-                     Administrador
+                  <div style={{ 
+                     marginTop: '16px', padding: '6px 18px', borderRadius: '999px', 
+                     background: '#F1F5F9', fontSize: '10px', fontWeight: 800, 
+                     color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.15em'
+                  }}>
+                     {currentRole}
                   </div>
                </div>
 
-               {/* Acciones de Perfil */}
-               <div className="mt-10 grid grid-cols-2 gap-4">
+               {/* Profile Actions */}
+               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '20px' }}>
                   <button
                      onClick={() => { onClose(); navigate('/settings'); }}
-                     className="flex items-center justify-center gap-2 py-6 px-4 rounded-[30px] bg-slate-50 text-slate-600 font-bold text-[15px] transition hover:bg-slate-100 border-none outline-none cursor-pointer"
+                     style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                        gap: '8px', padding: '18px 0', borderRadius: '24px', 
+                        background: '#FFFFFF', color: '#64748B', fontWeight: 700, 
+                        fontSize: '14px', border: '1px solid #F1F5F9', cursor: 'pointer',
+                        transition: 'all 0.2s'
+                     }}
+                     onMouseOver={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                     onMouseOut={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#F1F5F9'; }}
                   >
-                     <User size={20} />
-                     Editar perfil
+                     <User size={18} strokeWidth={2.5} />
+                     Perfil
                   </button>
                   <button
                      onClick={() => { onClose(); navigate('/settings'); }}
-                     className="flex items-center justify-center gap-2 py-6 px-4 rounded-[30px] bg-slate-50 text-slate-600 font-bold text-[15px] transition hover:bg-slate-100 border-none outline-none cursor-pointer"
+                     style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                        gap: '8px', padding: '18px 0', borderRadius: '24px', 
+                        background: '#FFFFFF', color: '#64748B', fontWeight: 700, 
+                        fontSize: '14px', border: '1px solid #F1F5F9', cursor: 'pointer',
+                        transition: 'all 0.2s'
+                     }}
+                     onMouseOver={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                     onMouseOut={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#F1F5F9'; }}
                   >
-                     <ShieldCheck size={20} />
+                     <ShieldCheck size={18} strokeWidth={2.5} />
                      Seguridad
                   </button>
+
+                  {isAuthorized && (
+                     <>
+                        <button
+                           onClick={() => { alert("Próximamente disponible: Cambiar foto"); }}
+                           style={{ 
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                              gap: '8px', padding: '18px 0', borderRadius: '24px', 
+                              background: '#FFFFFF', color: '#64748B', fontWeight: 700, 
+                              fontSize: '14px', border: '1px solid #F1F5F9', cursor: 'pointer',
+                              transition: 'all 0.2s'
+                           }}
+                           onMouseOver={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                           onMouseOut={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#F1F5F9'; }}
+                        >
+                           <Camera size={18} strokeWidth={2.5} />
+                           Cambiar foto
+                        </button>
+                        <button
+                           onClick={() => setShowSubscription(true)}
+                           style={{ 
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                              gap: '8px', padding: '18px 0', borderRadius: '24px', 
+                              background: '#FFFFFF', color: '#64748B', fontWeight: 700, 
+                              fontSize: '14px', border: '1px solid #F1F5F9', cursor: 'pointer',
+                              transition: 'all 0.2s'
+                           }}
+                           onMouseOver={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                           onMouseOut={e => { e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.borderColor = '#F1F5F9'; }}
+                        >
+                           <CreditCard size={18} strokeWidth={2.5} />
+                           Ver suscripción
+                        </button>
+                     </>
+                  )}
                </div>
 
-               {/* Tarjeta Suscripción */}
-               <div className="mt-10 p-10 rounded-[44px] bg-white shadow-[0_15px_60px_rgba(0,0,0,0.04)] border border-slate-50">
-                  <div className="flex items-start justify-between">
-                     <div className="flex flex-col">
-                        <h4 className="text-[20px] font-black text-slate-900 tracking-tight">Suscripción</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                           <span className="text-[14px] text-slate-400 font-bold">{quickStats.plan}</span>
-                           <span className="text-[14px] text-emerald-500 font-black">| Activo</span>
+               {/* Clinic Configuration */}
+               {isAuthorized && (
+                  <div style={{ 
+                     marginTop: '20px', padding: '20px', borderRadius: '32px', 
+                     background: '#F8FAFC', border: '1px solid #F1F5F9'
+                  }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '14px', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #F1F5F9' }}>
+                           <Building2 size={20} color="#2563EB" />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                           <span style={{ fontSize: '16px', fontWeight: 800, color: '#1E293B' }}>Nombre de la clínica</span>
+                           <span style={{ fontSize: '11px', fontWeight: 600, color: '#94A3B8' }}>Identidad para mensajes y facturas</span>
                         </div>
                      </div>
-                     
-                     <div className="px-4 py-2 rounded-full bg-emerald-50 text-[11px] font-black text-emerald-500 flex items-center gap-1 cursor-pointer transition border-none outline-none">
-                        Plan Pro
-                        <ChevronRight size={14} strokeWidth={3} />
+
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <input 
+                           type="text" 
+                           value={tempClinicName}
+                           onChange={(e) => setTempClinicName(e.target.value)}
+                           placeholder="Nombre de tu clínica"
+                           style={{ 
+                              width: '100%', padding: '16px 20px', borderRadius: '18px', 
+                              background: '#FFFFFF', border: '2px solid #F1F5F9', 
+                              fontSize: '14px', fontWeight: 700, color: '#1E293B',
+                              outline: 'none', transition: 'border-color 0.2s',
+                              boxSizing: 'border-box'
+                           }}
+                        />
+                        <button
+                           onClick={handleUpdateClinic}
+                           disabled={isUpdating}
+                           style={{ 
+                              width: '100%', padding: '18px 0', borderRadius: '20px', 
+                              background: showSuccess ? '#10B981' : '#2563EB', color: '#FFFFFF', 
+                              fontWeight: 900, fontSize: '13px', textTransform: 'uppercase', 
+                              letterSpacing: '0.1em', border: 'none', cursor: 'pointer',
+                              boxShadow: showSuccess ? '0 8px 20px rgba(16,185,129,0.2)' : '0 10px 25px rgba(37,99,235,0.2)',
+                              transition: 'all 0.3s ease', display: 'flex', alignItems: 'center',
+                              justifyContent: 'center', gap: '8px'
+                           }}
+                        >
+                           {isUpdating ? 'Actualizando...' : showSuccess ? (<><CheckCircle size={14} /> Guardado</>) : 'Actualizar'}
+                        </button>
+
+                        <button
+                           onClick={onLogout}
+                           style={{ 
+                              width: 'fit-content', padding: '8px 20px', 
+                              borderRadius: '14px', background: 'transparent', color: '#94A3B8', 
+                              fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', 
+                              letterSpacing: '0.1em', border: 'none', 
+                              cursor: 'pointer', transition: 'all 0.2s',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                              alignSelf: 'center', marginTop: '10px'
+                           }}
+                           onMouseOver={e => { e.currentTarget.style.color = '#E11D48'; e.currentTarget.style.background = '#FFF1F2'; }}
+                           onMouseOut={e => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = 'transparent'; }}
+                        >
+                           <LogOut size={13} strokeWidth={2.5} />
+                           Cerrar sesión
+                        </button>
+                     </div>
+                  </div>
+               )}
+
+               {/* Subscription & Multi-currency */}
+               <div style={{ 
+                  marginTop: '12px', padding: '24px', borderRadius: '36px', 
+                  background: '#FFFFFF', border: '1px solid #F1F5F9',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.02)'
+               }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <div>
+                        <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#1E293B', margin: 0 }}>Suscripción</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#94A3B8' }}>{quickStats.plan}</span>
+                           <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10B981' }} />
+                           <span style={{ fontSize: '12px', fontWeight: 800, color: '#10B981' }}>Activo</span>
+                        </div>
+                     </div>
+                     <div style={{ padding: '8px 16px', background: '#ECFDF5', borderRadius: '12px', fontSize: '11px', fontWeight: 900, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        PROFESSIONAL
                      </div>
                   </div>
 
-                  <div className="mt-8 grid grid-cols-2 gap-4">
-                     <div className="p-6 rounded-[34px] bg-slate-50/60 border-none text-center">
-                        <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase mb-1">
-                           <span className="text-[14px]">🇦🇷</span> DÓLAR (HOY)
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '24px' }}>
+                     <div style={{ padding: '20px', borderRadius: '24px', background: '#F8FAFC', textAlign: 'center' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', letterSpacing: '0.1em' }}>TASA $</span>
+                        <div style={{ fontSize: '18px', fontWeight: 900, color: '#0F172A', marginTop: '4px' }}>
+                           {Number(exchangeRate || 0).toFixed(2)}
                         </div>
-                        <div className="text-[22px] font-black text-slate-900 leading-none mt-1">
-                           {Number(exchangeRate || 0).toLocaleString('es-VE', { minimumFractionDigits: 4 })}
-                        </div>
-                        <div className="text-[11px] font-black text-emerald-500 mt-2">+10,01% ↑</div>
                      </div>
-
-                     <div className="p-6 rounded-[34px] bg-slate-50/60 border-none text-center">
-                        <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase mb-1">
-                           <span className="text-[14px]">🇻🇪</span> BCV
+                     <div style={{ padding: '20px', borderRadius: '24px', background: '#F8FAFC', textAlign: 'center' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', letterSpacing: '0.1em' }}>BCV RATE</span>
+                        <div style={{ fontSize: '18px', fontWeight: 900, color: '#0F172A', marginTop: '4px' }}>
+                           {quickStats.bcvRate.toFixed(2)}
                         </div>
-                        <div className="text-[22px] font-black text-slate-900 leading-none mt-1">
-                           {quickStats.bcvRate.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-[11px] font-black text-rose-500 mt-2">-20,01% ↓</div>
                      </div>
                   </div>
-
-                  <button
-                     onClick={() => { onClose(); navigate('/settings'); }}
-                     className="mt-8 w-full flex items-center justify-center gap-3 py-7 rounded-[34px] bg-slate-100 text-slate-600 font-black text-[15px] hover:bg-slate-200 transition border-none outline-none cursor-pointer"
-                  >
-                     <Settings size={22} className="text-slate-400" />
-                     Gestionar plan
-                  </button>
                </div>
 
-               {/* Atajos Rápidos */}
-               <div className="mt-12">
-                  <h4 className="text-[14px] font-black text-slate-300 tracking-[0.3em] uppercase mb-8 ml-1">
-                     Atajos rápidos
+               {/* Quick Shortcuts */}
+               <div style={{ marginTop: '28px' }}>
+                  <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '20px', paddingLeft: '8px' }}>
+                     Accesos Directos
                   </h4>
                   
-                  <div className="grid grid-cols-3 gap-4">
-                     <div className="p-7 rounded-[40px] bg-white shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-slate-50 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition cursor-pointer group">
-                        <div className="mb-4 p-5 rounded-[26px] bg-slate-50 text-slate-300 group-hover:bg-slate-900 group-hover:text-white transition">
-                           <CalendarDays size={32} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                     {[
+                        { icon: <CalendarDays size={20} />, label: 'Citas', path: '/scheduler' },
+                        { icon: <UserPlus size={20} />, label: 'Facturar', path: '/finance' },
+                        { icon: <Settings size={20} />, label: 'Ajustes', path: '/settings' }
+                     ].map((item, idx) => (
+                        <div 
+                           key={idx}
+                           onClick={() => { onClose(); navigate(item.path); }}
+                           style={{ 
+                              padding: '24px 12px', borderRadius: '28px', background: '#FFFFFF', 
+                              border: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', 
+                              alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'all 0.2s',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
+                           }}
+                           onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.06)'; }}
+                           onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.02)'; }}
+                        >
+                           <div style={{ width: '40px', height: '40px', borderRadius: '14px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}>
+                              {item.icon}
+                           </div>
+                           <span style={{ fontSize: '12px', fontWeight: 800, color: '#334155' }}>{item.label}</span>
                         </div>
-                        <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Ver citas<br/>agendadas</span>
-                     </div>
-
-                     <div className="relative p-7 rounded-[40px] bg-white shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-slate-50 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition cursor-pointer group">
-                        <div className="absolute top-5 right-5 h-8 w-8 rounded-full bg-blue-500 text-white text-[12px] font-black flex items-center justify-center shadow-lg transform translate-x-1 -translate-y-1 border-4 border-white">
-                           3
-                        </div>
-                        <div className="mb-4 p-5 rounded-[26px] bg-slate-50 text-slate-300 group-hover:bg-slate-900 group-hover:text-white transition">
-                           <UserPlus size={32} />
-                        </div>
-                        <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Nuevo<br/>paciente</span>
-                     </div>
-
-                     <div className="p-7 rounded-[40px] bg-white shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-slate-50 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition cursor-pointer group">
-                        <div className="mb-4 p-5 rounded-[26px] bg-slate-50 text-slate-300 group-hover:bg-slate-900 group-hover:text-white transition">
-                           <BarChart3 size={32} />
-                        </div>
-                        <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Ver<br/>finanzas</span>
-                     </div>
+                     ))}
                   </div>
                </div>
 
-               {/* Botón Logout */}
-               <div className="mt-12">
-                  <button
-                     onClick={onLogout}
-                     className="w-full flex items-center justify-center gap-3 py-7 rounded-[38px] bg-slate-50 text-slate-800 font-extrabold text-[17px] hover:bg-slate-100 transition border-none outline-none cursor-pointer"
-                  >
-                     <LogOut size={24} className="text-slate-300" />
-                     Cerrar sesión
-                  </button>
+               {/* Extra Info */}
+               <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#F8FAFC', borderRadius: '24px', border: '1px solid #F1F5F9' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                     <span style={{ fontSize: '10px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase' }}>Sesión activa</span>
+                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>{profile?.email}</span>
+                  </div>
+                  <div style={{ padding: '6px 12px', background: '#FFFFFF', borderRadius: '10px', fontSize: '10px', fontWeight: 900, color: '#10B981', border: '1px solid #F1F5F9' }}>
+                     ONLINE
+                  </div>
                </div>
-
-               <div className="h-16" />
             </div>
          </div>
+         
+         <SubscriptionModal 
+            isOpen={showSubscription}
+            onClose={() => setShowSubscription(false)}
+         />
       </div>,
       document.body
    );
