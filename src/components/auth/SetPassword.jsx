@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -38,7 +38,6 @@ const SetPassword = () => {
             // 2. Link to organization if metadata exists
             const metadata = user?.user_metadata || {};
             const orgId = metadata.organization_id;
-            const role = metadata.role || 'doctor';
 
             if (orgId) {
                 // Upsert profile

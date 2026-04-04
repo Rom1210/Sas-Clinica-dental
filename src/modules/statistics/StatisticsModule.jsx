@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   Users, DollarSign, Activity, 
-  TrendingUp, TrendingDown, Star, Zap, Loader2, Calendar, CheckCircle, RefreshCw, XCircle, FileText
+  TrendingUp, TrendingDown, Star, Loader2, Calendar, XCircle, FileText
 } from 'lucide-react';
 
 // Common Options

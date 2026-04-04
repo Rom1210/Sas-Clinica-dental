@@ -54,8 +54,9 @@ const NewTreatmentPlan = ({ onCancel, onSave, initialData = null }) => {
 
   const handleCreatePlan = () => {
     if (!planName || items.length === 0) return; // Basic validation
+    const newId = initialData ? initialData.id : Date.now();
     onSave({
-      id: initialData ? initialData.id : Date.now(),
+      id: newId,
       name: planName,
       items,
       total: totalAmount,
@@ -113,7 +114,7 @@ const NewTreatmentPlan = ({ onCancel, onSave, initialData = null }) => {
           
           <div className="flex flex-col gap-4">
             {/* Treatment List Items - Editable Rows */}
-            {items.map((item, idx) => (
+            {items.map((item) => (
               <div key={item.id} className="relative bg-white p-6 rounded-[20px] border border-slate-200 shadow-sm flex flex-col md:flex-row items-end gap-6 group">
                 <div className="flex-1 w-full">
                   <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 block">Nombre</label>

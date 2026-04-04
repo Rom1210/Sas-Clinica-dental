@@ -285,6 +285,12 @@ const BIDashboard = () => {
     }
   };
 
+  const handleGlobalReminders = () => {
+    // Implement global reminders logic or leave empty for now
+    console.log("Global reminders triggered");
+    alert("Función de recordatorios globales próximamente disponible");
+  };
+
   const kpis = [
     {
       label: 'Ingresos Mensuales',
@@ -316,8 +322,7 @@ const BIDashboard = () => {
     },
   ];
 
-  const handleGlobalReminders = () =>
-    alert('Caza-Deudores Masivo: Bot activado para notificar a todos los pacientes con saldos pendientes.');
+
 
   if (loading) {
     return (

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
@@ -75,7 +76,7 @@ export const DataProvider = ({ children }) => {
     }
   }, [user, activeOrgId]);
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -124,7 +125,9 @@ export const DataProvider = ({ children }) => {
             const amountStr = parts[1].trim().split(' ')[0].replace(',', '');
             return parseFloat(amountStr) || 0;
           }
-        } catch (e) {}
+        } catch (error) {
+          console.error("Error parsing appointment cost:", error);
+        }
         return 0;
       };
 
@@ -135,6 +138,15 @@ export const DataProvider = ({ children }) => {
 
         const totalDueCons = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
         const totalPaid = pPays.reduce((sum, pay) => {
+          // Priority 1: Use pre-calculated amount_usd if present (Financial Immutability)
+          if (pay.amount_usd) return sum + parseFloat(pay.amount_usd);
+          
+          // Priority 2: Use saved exchange_rate from the transaction time
+          if (pay.exchange_rate && pay.currency === 'VES') {
+            return sum + (parseFloat(pay.amount) / parseFloat(pay.exchange_rate));
+          }
+
+          // Fallback: Use current exchange rate (for legacy records)
           const amt = parseFloat(pay.amount || 0);
           return sum + (pay.currency === 'USD' ? amt : amt / (exchangeRate || 45.50));
         }, 0);
@@ -239,13 +251,10 @@ export const DataProvider = ({ children }) => {
         status: m.status || (m.is_active ? 'active' : 'inactive')
       })));
 
-    } catch (err) {
-      setError(err.message);
-      console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, activeOrgId, exchangeRate]);
 
   // --- Real-time Stats Calculation ---
   const stats = useMemo(() => {
@@ -265,12 +274,28 @@ export const DataProvider = ({ children }) => {
       return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
     };
 
-    // 1. Income (from Invoices or Payments - using Invoices for "total billed" consistency with Dashboard)
-    const thisMonthInvoices = invoices.filter(i => isThisMonth(i.created_at));
-    const lastMonthInvoices = invoices.filter(i => isLastMonth(i.created_at));
+    // 1. Income (from Payments - more accurate for "cash on hand")
+    const thisMonthPayments = payments.filter(p => isThisMonth(p.created_at));
+    const lastMonthPayments = payments.filter(p => isLastMonth(p.created_at));
     
-    const currentIncome = thisMonthInvoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
-    const lastIncome = lastMonthInvoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
+    const currentIncome = thisMonthPayments.reduce((sum, p) => {
+      if (p.amount_usd) return sum + parseFloat(p.amount_usd);
+      if (p.exchange_rate && p.currency === 'VES') {
+        return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
+      }
+      const amt = parseFloat(p.amount || 0);
+      return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
+    }, 0);
+    
+    const lastIncome = lastMonthPayments.reduce((sum, p) => {
+      if (p.amount_usd) return sum + parseFloat(p.amount_usd);
+      if (p.exchange_rate && p.currency === 'VES') {
+        return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
+      }
+      const amt = parseFloat(p.amount || 0);
+      return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
+    }, 0);
+    
     const incomeTrend = lastIncome === 0 ? (currentIncome > 0 ? 100 : 0) : ((currentIncome - lastIncome) / lastIncome) * 100;
 
     // 2. New Patients
@@ -343,19 +368,26 @@ export const DataProvider = ({ children }) => {
       const y = d.getFullYear();
       const label = MONTHS_SHORT[m];
       
-      const mInvoices = invoices.filter(inv => {
-        const idate = new Date(inv.created_at);
-        return idate.getMonth() === m && idate.getFullYear() === y;
+      const mPayments = payments.filter(p => {
+        const pdate = new Date(p.created_at);
+        return pdate.getMonth() === m && pdate.getFullYear() === y;
       });
       const mExpenses = expenses.filter(exp => {
-        const edate = new Date(exp.date);
+        const edate = new Date(exp.date || exp.created_at);
         return edate.getMonth() === m && edate.getFullYear() === y;
       });
 
       return {
         label,
-        income: mInvoices.reduce((s, inv) => s + (inv.total_amount || 0), 0),
-        expenses: mExpenses.reduce((s, exp) => s + (exp.amount || 0), 0)
+        income: mPayments.reduce((s, p) => {
+          if (p.amount_usd) return s + parseFloat(p.amount_usd);
+          if (p.exchange_rate && p.currency === 'VES') {
+            return s + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
+          }
+          const amt = parseFloat(p.amount || 0);
+          return s + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
+        }, 0),
+        expenses: mExpenses.reduce((s, e) => s + (e.currency === 'USD' || !e.currency ? (parseFloat(e.amount) || 0) : (parseFloat(e.amount) || 0) / (exchangeRate || 45.50)), 0)
       };
     });
 
@@ -367,9 +399,16 @@ export const DataProvider = ({ children }) => {
       conversionRate,
       debtors: patientBalances,
       specialtyData,
-      totalIncome: invoices.reduce((sum, i) => sum + (i.total_amount || 0), 0),
+      totalIncome: payments.reduce((sum, p) => {
+        if (p.amount_usd) return sum + parseFloat(p.amount_usd);
+        if (p.exchange_rate && p.currency === 'VES') {
+          return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
+        }
+        const amt = parseFloat(p.amount || 0);
+        return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
+      }, 0),
       totalCuentasPorCobrar: patientBalances.reduce((sum, p) => sum + (p.debt || 0), 0),
-      totalEgresos: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+      totalEgresos: expenses.reduce((sum, e) => sum + (e.currency === 'USD' || !e.currency ? (parseFloat(e.amount) || 0) : (parseFloat(e.amount) || 0) / (exchangeRate || 45.50)), 0),
       extendedStats: {
         doctorPerformance,
         servicePopularity,
@@ -377,11 +416,11 @@ export const DataProvider = ({ children }) => {
         patientGrowth: patients.length
       }
     };
-  }, [invoices, patients, appointments, consultations, payments, expenses]);
+  }, [invoices, patients, appointments, consultations, payments, expenses, doctors]);
 
   // --- Services ---
   const addService = async (service) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('services')
       .insert([{ 
         name: service.name,
@@ -401,7 +440,7 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateService = async (service) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('services')
       .update({
         name: service.name,
@@ -416,7 +455,7 @@ export const DataProvider = ({ children }) => {
 
   // --- Doctors ---
   const addDoctor = async (doctor) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('doctors')
       .insert([{ 
         full_name: doctor.name,
@@ -438,7 +477,7 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateDoctor = async (doctor) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('doctors')
       .update({
         full_name: doctor.name,
@@ -483,11 +522,13 @@ export const DataProvider = ({ children }) => {
     return data[0];
   };
 
-  const addPayment = async (patientId, payment) => {
-    const { data, error } = await supabase
+  const addPayment = async (paymentData) => {
+    const { error } = await supabase
       .from('payments')
-      .insert([{ ...payment, patient_id: patientId, organization_id: activeOrgId }])
-      .select();
+      .insert([{ 
+        ...paymentData, 
+        organization_id: activeOrgId 
+      }]);
     if (error) throw error;
     // Update local state or re-fetch
     fetchAllData(); 
@@ -505,13 +546,12 @@ export const DataProvider = ({ children }) => {
 
   // --- Appointments ---
   const addAppointment = async (appointmentData) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('appointments')
       .insert([{ 
         ...appointmentData, 
         organization_id: activeOrgId
-      }])
-      .select();
+      }]);
     if (error) throw error;
     await fetchAllData();
   };
@@ -573,20 +613,6 @@ export const DataProvider = ({ children }) => {
     if (error) throw error;
     await fetchAllData();
     return data[0];
-  };
-
-  const calculateBlocks = (startsAt, endsAt) => {
-    const start = new Date(startsAt);
-    const end = new Date(endsAt);
-    const blocks = [];
-    let current = new Date(start);
-    while (current < end) {
-      const hours = String(current.getHours()).padStart(2, '0');
-      const minutes = String(current.getMinutes()).padStart(2, '0');
-      blocks.push(`${hours}:${minutes}`);
-      current.setMinutes(current.getMinutes() + 15);
-    }
-    return blocks;
   };
 
   return (
