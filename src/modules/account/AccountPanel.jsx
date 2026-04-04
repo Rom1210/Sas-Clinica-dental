@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../../context/SettingsContext';
@@ -14,7 +14,7 @@ import {
    ChevronRight
 } from 'lucide-react';
 
-const AccountPanel = ({ isOpen, onClose, user, profile, onLogout }) => {
+const AccountPanel = ({ isOpen, onClose, profile, onLogout }) => {
    const navigate = useNavigate();
    const { exchangeRate } = useSettings();
 

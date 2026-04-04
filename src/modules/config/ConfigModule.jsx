@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
-import { DollarSign, Percent, Save, Trash2, Plus } from 'lucide-react';
+import { DollarSign, Save, Trash2, Plus } from 'lucide-react';
 
 const ConfigModule = () => {
-  const { exchange_rate, updateExchangeRate } = useSettings();
-  const [newRate, setNewRate] = useState(exchange_rate);
+  const { exchangeRate, updateExchangeRate } = useSettings();
+  const [newRate, setNewRate] = useState(exchangeRate);
   const [doctors, setDoctors] = useState([
     { id: 1, name: 'Dr. Ricardo Pérez', specialty: 'Ortodoncia', active: true },
     { id: 2, name: 'Dra. Elena Gómez', specialty: 'Endodoncia', active: true }

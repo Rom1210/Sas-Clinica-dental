@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, UserPlus, Mail, Shield, CheckCircle, 
-  X, Loader2, Search, Filter, Trash2, 
-  ShieldCheck, CreditCard, ArrowLeft
+  X, Loader2, Search, Trash2, 
+  ArrowLeft, UserPlus, Shield, CheckCircle, Mail
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -30,7 +29,7 @@ const TeamManagement = () => {
     e.preventDefault();
     setInviteLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('invite-member', {
+      const { error } = await supabase.functions.invoke('invite-member', {
         body: { 
           email: inviteEmail, 
           role: inviteRole, 
@@ -77,7 +76,6 @@ const TeamManagement = () => {
         </div>
       )}
 
-      {/* Back Button */}
       <button 
         onClick={() => navigate('/settings')}
         className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-semibold text-sm cursor-pointer border-none bg-transparent p-0 mb-2 w-fit"
@@ -85,7 +83,6 @@ const TeamManagement = () => {
         <ArrowLeft size={16} /> Volver a Configuración
       </button>
 
-      {/* ── HEADER CARD ─────────────────────────────────── */}
       <div style={{
           background: 'white', border: '1px solid #e2e8f0', borderRadius: '1.25rem',
           padding: '1.25rem 1.75rem', display: 'flex', alignItems: 'center',
@@ -115,12 +112,10 @@ const TeamManagement = () => {
         </button>
       </div>
 
-      {/* ── TABLE CARD ──────────────────────────────────── */}
       <div style={{
         background: 'white', border: '1px solid #e2e8f0', borderRadius: '1.25rem',
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden'
       }}>
-        {/* Search Bar Row */}
         <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid #f1f5f9' }}>
           <div style={{ position: 'relative', maxWidth: '380px' }}>
             <input 
@@ -143,7 +138,6 @@ const TeamManagement = () => {
           </div>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>

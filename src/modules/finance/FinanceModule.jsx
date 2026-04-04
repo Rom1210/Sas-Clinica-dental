@@ -8,16 +8,19 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useData } from '../../context/DataContext';
+import RegisterPaymentModal from '../../components/finance/RegisterPaymentModal';
 
 const FinanceModule = () => {
   const navigate = useNavigate();
   const { exchangeRate, formatPrice } = useSettings();
   const { 
     patients, addPayment, expenses, addExpense, payments, consultations,
-    invoices, addInvoice, refresh, stats: globalStats
+    invoices, addInvoice, stats: globalStats
   } = useData();
   const [activeTab, setActiveTab] = useState('accounts'); // 'accounts', 'expenses', 'invoices'
   const [showModal, setShowModal] = useState(null); // 'expense' | null
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [notification, setNotification] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -25,20 +28,20 @@ const FinanceModule = () => {
     category: 'Laboratorio', description: '', provider: ''
   });
 
+  const usdEquivalent = useMemo(() => {
+    if (!formData.amount) return 0;
+    if (formData.currency === 'USD') return parseFloat(formData.amount);
+    return parseFloat(formData.amount) / (exchangeRate || 45.50);
+  }, [formData.amount, formData.currency, exchangeRate]);
+
+
   const notify = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Calculations
-  // p.patientName is already mapped in DataContext
   const allPayments = payments;
 
-  const totalIngresos = useMemo(() => allPayments.reduce((acc, p) => 
-    acc + (p.currency === 'USD' ? p.amount : p.amount / exchangeRate), 0), [allPayments, exchangeRate]);
-  
-  const totalEgresos = useMemo(() => expenses.reduce((acc, e) => acc + e.amount, 0), [expenses]);
-  
   // Patient Financial Analysis - Use global state from DataContext
   const patientFinancials = patients;
 
@@ -55,6 +58,7 @@ const FinanceModule = () => {
       provider: formData.provider,
       description: formData.description,
       amount: parseFloat(formData.amount),
+      currency: formData.currency,
       date: new Date().toISOString().split('T')[0]
     });
     setShowModal(null);
@@ -206,9 +210,20 @@ const FinanceModule = () => {
               <h2 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Egresos y Compras</h2>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Costos operativos y adquisiciones</p>
             </div>
-            <button onClick={() => setShowModal('expense')} className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all border-none cursor-pointer shadow-lg shadow-slate-200">
-               <Plus size={14} /> Registrar Gasto
-            </button>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowPaymentModal(true)} 
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all border-none cursor-pointer shadow-lg shadow-primary/20"
+              >
+                 <Plus size={14} /> Registrar Pago
+              </button>
+              <button 
+                onClick={() => setShowModal('expense')} 
+                className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all border-none cursor-pointer shadow-lg shadow-slate-200"
+              >
+                 <Plus size={14} /> Registrar Gasto
+              </button>
+            </div>
           </div>
 
           <div className="professional-card p-0 overflow-hidden border-none shadow-sm bg-white">
@@ -233,7 +248,18 @@ const FinanceModule = () => {
                       <span className="text-[11px] font-medium text-slate-600 block">{exp.description}</span>
                       <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mt-1 inline-block bg-slate-100 px-2 py-0.5 rounded">{exp.category}</span>
                     </td>
-                    <td className="px-6 py-4 text-right text-xs font-black text-rose-600">-{formatPrice(exp.amount)}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs font-black text-rose-600">
+                          -{formatPrice(exp.currency === 'VES' ? (exp.amount / exchangeRate) : exp.amount)}
+                        </span>
+                        {exp.currency === 'VES' && (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                            ({exp.amount} BS)
+                          </span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -311,10 +337,35 @@ const FinanceModule = () => {
                 <option value="Servicios">Servicios / Alquiler</option>
                 <option value="Nómina">Nómina</option>
               </select>
+              <div className="flex flex-col gap-2">
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  {['USD', 'VES'].map(curr => (
+                    <button
+                      key={curr}
+                      type="button"
+                      onClick={() => setFormData({...formData, currency: curr})}
+                      className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all border-none cursor-pointer ${formData.currency === curr ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {curr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-2">
                  <input type="text" placeholder="Concepto..." className="col-span-2 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:outline-none" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
-                 <input type="number" step="0.01" required placeholder="0.00" className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black focus:outline-none" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} />
+                 <div className="relative">
+                   <input type="number" step="0.01" required placeholder="0.00" className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black focus:outline-none" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} />
+                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">{formData.currency}</div>
+                 </div>
               </div>
+
+              {formData.currency === 'VES' && formData.amount && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex justify-between items-center animate-in slide-in-from-top-2">
+                  <span className="text-[9px] font-black text-primary uppercase tracking-widest">Equivalente USD</span>
+                  <span className="text-sm font-black text-primary">${usdEquivalent.toFixed(2)}</span>
+                </div>
+              )}
 
               <button type="submit" className="mt-4 w-full py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-primary transition-all shadow-xl shadow-slate-200 border-none cursor-pointer">
                 Confirmar Gasto
@@ -322,6 +373,20 @@ const FinanceModule = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Register Payment Modal (Portal) */}
+      {showPaymentModal && (
+        <RegisterPaymentModal 
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedPatientId(null);
+          }} 
+          patientId={selectedPatientId} 
+          onSuccess={() => {
+            notify('Pago registrado correctamente');
+          }}
+        />
       )}
     </div>
   );

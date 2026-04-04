@@ -244,7 +244,6 @@ const Odontogram = () => {
     const startIdx = startInfo.idx;
     const endIdx = endInfo.idx;
     const minIdx = Math.min(startIdx, endIdx);
-    const maxIdx = Math.max(startIdx, endIdx);
 
     return (
       <div className={`bridge-marker-layer ${color}`}>

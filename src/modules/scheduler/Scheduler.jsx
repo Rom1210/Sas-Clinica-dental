@@ -235,7 +235,8 @@ const Scheduler = () => {
         navigate(location.pathname, { replace: true, state: newState });
       }
     }
-  }, [location.state, appointments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, appointments, navigate, location.pathname]);
 
   // 7. Event Handlers
 
@@ -265,7 +266,6 @@ const Scheduler = () => {
       return;
     }
     
-    const slotKey = `${dateStr}|${time}`;
     setIsDragging(true);
     setDragStartSlot({ dateStr, timeIdx });
     setPointerPos({ x: e.clientX, y: e.clientY });

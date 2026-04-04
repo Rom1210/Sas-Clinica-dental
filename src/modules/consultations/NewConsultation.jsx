@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, User, CheckCircle2, Phone, Mail, FileText, Stethoscope } from 'lucide-react';
+import { ArrowLeft, Calendar, User, CheckCircle2, Phone, Mail } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 
 const NewConsultation = () => {
