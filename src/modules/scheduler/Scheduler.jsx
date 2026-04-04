@@ -2,12 +2,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Filter, Zap, LayoutGrid, CalendarDays, ClipboardList, Calendar as CalendarIcon, CheckCircle2, User, Clock, Check, X, AlertCircle, Stethoscope, DollarSign, CheckCircle, RefreshCw, Ban } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import useSoundFX from '../../hooks/useSoundFX';
 import { useData } from '../../context/DataContext';
 import AppointmentModal from './AppointmentModal';
+import Skeleton from '../../components/common/Skeleton';
 
 const Scheduler = () => {
-  const { appointments, addAppointment, addPatient, doctors, consultations, payments, patients } = useData();
+  const { appointments, addAppointment, addPatient, doctors, consultations, payments, patients, loading } = useData();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -39,10 +41,41 @@ const Scheduler = () => {
   const [pointerPos, setPointerPos] = useState({ x: 0, y: 0 });
   const [isLongDrag, setIsLongDrag] = useState(false);
 
-  // 4. Core Computed Data (Memos) - Move to TOP to avoid TDZ
+  // 4. Core Computed Data (Memos)
+  const appointmentMap = useMemo(() => {
+    const map = new Map();
+    let filtered = appointments || [];
+
+    if (filterType === 'Odontólogo general') {
+      filtered = filtered.filter(app => {
+        const doc = doctors.find(d => d.id === getDocId(app));
+        return doc && !doc.isSpecialist;
+      });
+    } else if (filterType === 'Especialista') {
+      filtered = filtered.filter(app => {
+        const doc = doctors.find(d => d.id === getDocId(app));
+        return doc && doc.isSpecialist;
+      });
+    }
+
+    if (selectedDoctorId) {
+      filtered = filtered.filter(app => getDocId(app) === selectedDoctorId);
+    }
+
+    filtered.forEach(app => {
+      if (!app.date || !app.blocks) return;
+      app.blocks.forEach(time => {
+        const key = `${app.date}|${time}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(app);
+      });
+    });
+
+    map.forEach(list => list.sort((a, b) => String(getDocId(a) || '').localeCompare(String(getDocId(b) || ''))));
+    return map;
+  }, [appointments, filterType, selectedDoctorId, doctors]);
 
   const hours = useMemo(() => {
-    // Extend until 22:00 (10 PM) as requested
     return Array.from({ length: 57 }, (_, i) => {
       const totalMin = 8 * 60 + i * 15;
       const h = Math.floor(totalMin / 60);
@@ -87,28 +120,7 @@ const Scheduler = () => {
   }, [activeDays]);
 
   const getAppointmentsForSlot = (dateStr, time) => {
-    let filtered = appointments || [];
-
-    if (filterType === 'Odontólogo general') {
-      filtered = filtered.filter(app => {
-        const doc = doctors.find(d => d.id === getDocId(app));
-        return doc && !doc.isSpecialist;
-      });
-    } else if (filterType === 'Especialista') {
-      filtered = filtered.filter(app => {
-        const doc = doctors.find(d => d.id === getDocId(app));
-        return doc && doc.isSpecialist;
-      });
-    }
-
-    if (selectedDoctorId) {
-      filtered = filtered.filter(app => getDocId(app) === selectedDoctorId);
-    }
-
-    return filtered.filter(app => {
-      if (app.date !== dateStr) return false;
-      return app.blocks?.includes(time);
-    }).sort((a, b) => String(getDocId(a) || '').localeCompare(String(getDocId(b) || '')));
+    return appointmentMap.get(`${dateStr}|${time}`) || [];
   };
 
   const filteredDoctors = useMemo(() => {
@@ -421,7 +433,7 @@ const Scheduler = () => {
       return;
     }
 
-    // Store services and prices in a structured format in notes
+    // Store services and prices in a structured format in notes for human readability
     const servicesSummary = preloadedServices.map(s => `${s.name} ($${s.price})`).join(', ');
     const totalAmount = location.state?.pendingConsultation?.total || 0;
     const structuredNotes = `Servicios: ${servicesSummary} | Total: $${totalAmount}`;
@@ -435,6 +447,7 @@ const Scheduler = () => {
       doctor_id: doctorId,
       status: 'scheduled',
       notes: structuredNotes,
+      total_amount: totalAmount, // NUEVA COLUMNA para lógica financiera limpia
     };
 
     try {
@@ -515,6 +528,22 @@ const Scheduler = () => {
                   {v.label}
                 </button>
               ))}
+            </div>
+
+            <div className="flex items-center gap-3 mr-2">
+              <AnimatePresence>
+                {loading && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10"
+                  >
+                    <RefreshCw size={12} className="text-primary animate-spin" />
+                    <span className="text-[9px] font-black text-primary uppercase tracking-widest">Sincronizando</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex items-center gap-1">
@@ -666,9 +695,39 @@ const Scheduler = () => {
 
           {/* Grid Body */}
           <div className="h-[700px] overflow-y-auto overflow-x-hidden custom-scrollbar bg-white relative">
-            <div className="absolute h-px bg-rose-500/50 z-30 pointer-events-none" id="current-time-line" style={{ display: 'none' }}>
-              <div className="absolute -left-1.5 -top-1 w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm border-2 border-white"></div>
-            </div>
+            
+            <AnimatePresence mode="wait">
+              {loading && appointments.length === 0 ? (
+                <motion.div 
+                  key="skeleton-overlay"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-x-0 top-[56px] bottom-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col p-10 gap-6"
+                >
+                  <div className="grid grid-cols-6 gap-6 h-full">
+                    {[...Array(activeDays.length)].map((_, i) => (
+                      <div key={i} className="flex flex-col gap-6">
+                        <Skeleton height="80px" borderRadius="1.5rem" />
+                        <Skeleton height="140px" borderRadius="1.5rem" />
+                        <Skeleton height="120px" borderRadius="1.5rem" />
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            <motion.div 
+               key={`${view}-${baseDate.toISOString()}`}
+               initial={{ opacity: 0, scale: 0.99 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0, scale: 1.01 }}
+               transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              <div className="absolute h-px bg-rose-500/50 z-30 pointer-events-none" id="current-time-line" style={{ display: 'none' }}>
+                <div className="absolute -left-1.5 -top-1 w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm border-2 border-white"></div>
+              </div>
 
             {hours.map((time, tIdx) => (
               <div key={tIdx} style={{ display: 'grid', gridTemplateColumns: `100px repeat(${activeDays.length}, 1fr)` }} className="group">
@@ -757,6 +816,7 @@ const Scheduler = () => {
                               <div
                                 key={`${app.id}-${time}-${index}`}
                                 onClick={(e) => { e.stopPropagation(); navigate(`/scheduler/appointment/${app.id}`); }}
+                                className={`absolute inset-0 z-20 ${app.isOptimistic ? 'animate-pulse' : ''}`}
                                 style={{
                                   position: 'absolute',
                                   top: isFirst ? '2px' : '-1px', 
@@ -788,9 +848,13 @@ const Scheduler = () => {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  border: isBlocked ? `2px dashed ${docColor}` : '1px solid rgba(255,255,255,0.1)',
+                                  border: isBlocked ? `2px dashed ${docColor}` : 
+                                          app.status === 'rescheduled' ? '3px solid #f59e0b' : 
+                                          app.status === 'cancelled' ? '3px solid #ef4444' : 
+                                          app.status === 'completed' ? '3px solid #10b981' : 
+                                          '1px solid rgba(255,255,255,0.1)',
                                   filter: isBlocked ? 'saturate(0.5)' : (app.status === 'cancelled' ? 'grayscale(0.8)' : 'none'),
-                                  opacity: app.status === 'cancelled' ? 0.6 : 1
+                                  opacity: (app.status === 'cancelled' || app.isOptimistic) ? 0.6 : 1
                                 }}
                                 onMouseOver={e => e.currentTarget.style.filter = 'brightness(1.1)'}
                                 onMouseOut={e => e.currentTarget.style.filter = 'none'}
@@ -825,6 +889,7 @@ const Scheduler = () => {
                 })}
               </div>
             ))}
+            </motion.div>
           </div>
         </div>
 

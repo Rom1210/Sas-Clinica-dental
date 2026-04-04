@@ -114,13 +114,13 @@ const AppointmentDetails = () => {
       icon: <CheckCircle size={12} strokeWidth={3} />
     },
     'rescheduled': {
-      label: 'Reagendada',
-      color: 'bg-amber-50 text-amber-600 border-amber-100',
+      label: 'CITA REPROGRAMADA',
+      color: 'bg-amber-100 text-amber-700 border-amber-300',
       icon: <RefreshCw size={12} strokeWidth={3} />
     },
     'cancelled': {
-      label: 'Cancelada',
-      color: 'bg-rose-50 text-rose-600 border-rose-100',
+      label: 'CITA CANCELADA',
+      color: 'bg-rose-100 text-rose-700 border-rose-300',
       icon: <Ban size={12} strokeWidth={3} />
     },
   };
@@ -253,7 +253,7 @@ const AppointmentDetails = () => {
             </button>
 
             <button 
-              onClick={() => navigate(`/pacientes/${patient?.id}`, { state: { activeTab: 'Odontograma' } })}
+              onClick={() => navigate(`/pacientes/${patient?.id}`, { state: { activeTab: 'General', scrollSection: 'odontogram' } })}
               className="w-full flex items-center justify-between p-4 bg-sky-50 rounded-2xl border border-sky-100 hover:border-sky-400 transition-all group cursor-pointer shadow-sm"
             >
               <div className="flex items-center gap-3">

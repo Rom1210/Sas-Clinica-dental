@@ -294,25 +294,25 @@ const BIDashboard = () => {
   const kpis = [
     {
       label: 'Ingresos Mensuales',
-      val: formatPrice(stats.currentIncome),
-      change: stats.incomeTrend >= 0 ? `+${stats.incomeTrend.toFixed(1)}%` : `${stats.incomeTrend.toFixed(1)}%`,
-      positive: stats.incomeTrend >= 0,
+      val: formatPrice(stats?.currentIncome || 0),
+      change: (stats?.incomeTrend || 0) >= 0 ? `+${(stats?.incomeTrend || 0).toFixed(1)}%` : `${(stats?.incomeTrend || 0).toFixed(1)}%`,
+      positive: (stats?.incomeTrend || 0) >= 0,
       icon: <DollarSign size={20} />,
       iconBg: '#ECFDF5',
       iconColor: '#059669',
     },
     {
       label: 'Pacientes Nuevos',
-      val: String(stats.newPatientsCount),
-      change: stats.newPatientsTrend >= 0 ? `+${stats.newPatientsTrend}` : `${stats.newPatientsTrend}`,
-      positive: stats.newPatientsTrend >= 0,
+      val: String(stats?.newPatientsCount || 0),
+      change: (stats?.newPatientsTrend || 0) >= 0 ? `+${stats?.newPatientsTrend || 0}` : `${stats?.newPatientsTrend || 0}`,
+      positive: (stats?.newPatientsTrend || 0) >= 0,
       icon: <Users size={20} />,
       iconBg: '#EFF6FF',
       iconColor: '#2563EB',
     },
     {
       label: 'Tasa de Conversión',
-      val: `${stats.conversionRate}%`,
+      val: `${stats?.conversionRate || 0}%`,
       change: 'Real',
       positive: true,
       isLabel: true,
@@ -564,7 +564,7 @@ const BIDashboard = () => {
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              {stats.debtors.length > 0 ? stats.debtors.slice(0, 5).map((d, i) => (
+              {(stats?.debtors || []).length > 0 ? (stats?.debtors || []).slice(0, 5).map((d, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E293B' }}>{d.name}</div>

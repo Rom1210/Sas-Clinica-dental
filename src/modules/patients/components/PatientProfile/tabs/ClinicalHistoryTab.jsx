@@ -78,7 +78,11 @@ const ClinicalHistoryTab = ({ patient, historicalItems, insightsData }) => {
 
               {/* 3. Icon Box */}
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                {React.cloneElement(item.icon, { size: 16, strokeWidth: 2.5 })}
+                {item.icon ? (
+                  React.cloneElement(item.icon, { size: 16, strokeWidth: 2.5 })
+                ) : (
+                  <FileText size={16} strokeWidth={2.5} />
+                )}
               </div>
 
               {/* 4. Info Bloq */}

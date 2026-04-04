@@ -150,11 +150,12 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
         start_at: `${selection.dateStr}T${selection.startTime}:00`,
         end_at: `${selection.dateStr}T${selection.endTime}:00`,
         status: 'scheduled',
-        notes: `Servicios: ${selectedServices.map(s => s.name).join(', ')}`,
-        // In a real app we'd also link services via invoice_items
+        notes: `Servicios: ${selectedServices.map(s => s.name).join(', ')} | Total: $${totalCost}`,
+        total_amount: totalCost, // NUEVA COLUMNA
       };
 
-      await addAppointment(appointmentData);
+      // No await here for zero-latency UI
+      addAppointment(appointmentData);
       onSuccess();
     } catch (error) {
       console.error('Error recording appointment:', error);
