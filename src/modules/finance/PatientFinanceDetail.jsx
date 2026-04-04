@@ -80,15 +80,22 @@ const PatientFinanceDetail = () => {
   const handleRegisterPayment = (e) => {
     e.preventDefault();
     if (!patient) return;
+    
+    const amount = parseFloat(formData.amount);
+    if (isNaN(amount) || amount <= 0) {
+      notify('Por favor ingrese un monto válido mayor a 0');
+      return;
+    }
 
     const payment = {
-      amount: parseFloat(formData.amount),
+      amount: amount,
       currency: formData.currency,
       method: formData.method,
       reference: formData.ref || 'Manual',
       payment_date: new Date().toISOString()
     };
     
+    // addPayment now handles exchangeRate and amount_usd inside DataContext
     addPayment(patient.id, payment);
     setFormData({ ...formData, amount: '', ref: '' });
     notify('Pago registrado correctamente');

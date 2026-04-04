@@ -67,7 +67,7 @@ const ExpensesTab = ({ filteredExpenses, totalFilteredExpenses, formatPrice, set
                 <td className="px-6 py-4 text-right">
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-black text-rose-600">
-                      -{formatPrice(exp.currency === 'VES' ? (exp.amount / (exp.exchange_rate || exchangeRate)) : exp.amount)}
+                      -{formatPrice(exp.amount_usd || (exp.currency === 'VES' ? (exp.amount / (exp.exchange_rate || exchangeRate)) : exp.amount))}
                     </span>
                     {exp.currency === 'VES' && (
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">

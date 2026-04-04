@@ -91,7 +91,7 @@ const GeneralTab = ({ patient, consultations, onSchedule }) => {
       </div>
 
       {/* Odontograma Section */}
-      <div className="flex flex-col gap-4 mt-6">
+      <div id="odontogram-section" className="flex flex-col gap-4 mt-6">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold text-slate-800">Odontograma</h2>
           <Info size={18} className="text-slate-400" />

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, User, Stethoscope, FileText, CheckCircle, X, ChevronDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { motion } from 'framer-motion';
+import Skeleton from '../../components/common/Skeleton';
 
 const ScheduleAppointment = () => {
   const { id } = useParams();
@@ -49,27 +51,43 @@ const ScheduleAppointment = () => {
     if (!formData.doctorId) return alert('Por favor selecciona un profesional.');
     
     const appointmentData = {
-      date: formData.date,
-      startTime: formData.time,
-      patientName: patient.name,
-      patientPhone: patient.phone,
-      patientEmail: patient.email,
-      doctorId: parseInt(formData.doctorId),
-      reason: formData.reason,
-      observations: formData.observations,
-      services: formData.selectedServices,
-      totalCost: 0, // Simplified for now
-      status: 'Programada'
+      starts_at: `${formData.date}T${formData.time}:00`,
+      ends_at: `${formData.date}T${formData.time}:30`, // Default 30 min
+      start_at: `${formData.date}T${formData.time}:00`,
+      end_at: `${formData.date}T${formData.time}:30`,
+      patient_id: patient.id,
+      doctor_id: parseInt(formData.doctorId),
+      status: 'scheduled',
+      notes: formData.observations || formData.reason,
+      total_amount: 0, // No cost calculation in this simple form yet
     };
 
     addAppointment(appointmentData);
     navigate(`/pacientes/${id}`);
   };
 
-  if (!patient) return <div className="p-10 text-center font-bold text-slate-500 uppercase tracking-widest">Cargando paciente...</div>;
+  if (!patient) return (
+    <div className="flex flex-col gap-8 p-10 animate-in fade-in duration-500">
+      <Skeleton width="200px" height="1.5rem" />
+      <Skeleton width="40%" height="2.5rem" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+         <div className="lg:col-span-8 h-[400px]">
+            <Skeleton height="100%" borderRadius="2rem" />
+         </div>
+         <div className="lg:col-span-4 h-[400px]">
+            <Skeleton height="100%" borderRadius="2rem" />
+         </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="flex flex-col gap-8 pb-20"
+    >
       
       {/* Header & Back Button */}
       <div className="flex flex-col gap-4">
@@ -123,7 +141,7 @@ const ScheduleAppointment = () => {
           <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col gap-8">
              <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
                 <Stethoscope size={20} className="text-primary" />
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">2. Odont\u00f3logo / Especialista</h3>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">2. Odontólogo / Especialista</h3>
              </div>
 
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -247,7 +265,7 @@ const ScheduleAppointment = () => {
         </div>
 
       </div>
-    </div>
+    </motion.div>
   );
 };
 

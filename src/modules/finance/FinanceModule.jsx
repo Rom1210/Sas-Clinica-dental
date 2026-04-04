@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
-  CheckCircle, TrendingDown, Wallet, Clock, TrendingUp, Plus
+  CheckCircle, TrendingDown, Wallet, Clock, TrendingUp, Plus, History
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useData } from '../../context/DataContext';
@@ -71,6 +71,13 @@ const FinanceModule = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // ─── USD Equivalent for Expenses ────────────────────────────────────────
+  const usdEquivalent = useMemo(() => {
+    if (!formData.amount) return 0;
+    if (formData.currency === 'USD') return parseFloat(formData.amount);
+    return parseFloat(formData.amount) / (exchangeRate || 45.50);
+  }, [formData.amount, formData.currency, exchangeRate]);
+
   // ─── Filtered Data Logic ────────────────────────────────────────────────
   const filteredInvoices = useMemo(() => {
     return (invoices || []).filter(inv => {
@@ -112,8 +119,8 @@ const FinanceModule = () => {
 
   const totalFilteredExpenses = useMemo(() => {
      return filteredExpenses.reduce((acc, e) => {
-       const amountUSD = e.currency === 'VES' ? (e.amount / (e.exchange_rate || exchangeRate)) : e.amount;
-       return acc + amountUSD;
+       const amountUSD = e.amount_usd || (e.currency === 'VES' ? (e.amount / (e.exchange_rate || exchangeRate)) : e.amount);
+       return acc + (parseFloat(amountUSD) || 0);
      }, 0);
   }, [filteredExpenses, exchangeRate]);
 
@@ -141,6 +148,7 @@ const FinanceModule = () => {
       amount: parseFloat(formData.amount),
       currency: formData.currency,
       exchange_rate: exchangeRate,
+      amount_usd: usdEquivalent,
       date: new Date().toISOString().split('T')[0]
     });
     setShowModal(null);
@@ -229,6 +237,7 @@ const FinanceModule = () => {
         formData={formData} setFormData={setFormData}
         handleRegisterExpense={handleRegisterExpense}
         exchangeRate={exchangeRate} formatPrice={formatPrice}
+        usdEquivalent={usdEquivalent}
       />
 
       {showPaymentModal && (

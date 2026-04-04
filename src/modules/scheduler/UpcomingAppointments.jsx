@@ -26,6 +26,24 @@ const UpcomingAppointments = () => {
       .sort((a, b) => new Date(a.starts_at || a.start_at) - new Date(b.starts_at || b.start_at));
   }, [appointments]);
 
+  const formatRelativeTime = (isoDate) => {
+    if (!isoDate) return '--:--';
+    const now = new Date();
+    const target = new Date(isoDate);
+    const diffMs = target - now;
+    const diffMin = Math.round(diffMs / (1000 * 60));
+    const diffHrs = Math.round(diffMin / 60);
+    const diffDays = Math.round(diffHrs / 24);
+
+    if (diffMin < 60) return `${diffMin} min`;
+    if (diffHrs < 24) return `${diffHrs} horas`;
+    return `${diffDays} día${diffDays !== 1 ? 's' : ''}`;
+  };
+
+  const nextAppTime = sortedAppointments.length > 0 
+    ? (sortedAppointments[0].starts_at || sortedAppointments[0].start_at)
+    : null;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-20">
@@ -79,15 +97,13 @@ const UpcomingAppointments = () => {
            </div>
         </div>
         <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl flex items-center gap-5 translate-y-0 hover:-translate-y-1 transition-all border border-white/5">
-           <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black">
-              <Clock size={20} />
+           <div className="w-12 h-12 rounded-xl bg-white/10 text-white flex items-center justify-center shadow-inner">
+              <Clock size={22} strokeWidth={2.5} />
            </div>
-           <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Próxima en</p>
-              <p className="text-lg font-black text-white">
-                {sortedAppointments.length > 0 
-                  ? new Date(sortedAppointments[0].starts_at || sortedAppointments[0].start_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-                  : '--:--'}
+           <div className="flex flex-col gap-0.5">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Próxima en</p>
+              <p className="text-lg font-black text-white leading-none">
+                {nextAppTime ? formatRelativeTime(nextAppTime) : '--:--'}
               </p>
            </div>
         </div>
@@ -107,10 +123,10 @@ const UpcomingAppointments = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-50">
-                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">Paciente</th>
-                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">Fecha y Hora</th>
-                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">Especialista</th>
-                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
+                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Paciente</th>
+                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Fecha y Hora</th>
+                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Especialista</th>
+                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -119,6 +135,8 @@ const UpcomingAppointments = () => {
                   const isToday = appDate.toDateString() === new Date().toDateString();
                   const docObj = doctors.find(d => d.id === app.doctor_id);
                   const docColor = docObj?.color || '#3b82f6';
+                  const startTime = app.startTime || appDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                  const endTime = app.endTime || '--:--';
 
                   return (
                     <tr key={app.id} className="group hover:bg-slate-50/50 transition-colors border-b border-slate-50/50 last:border-none">
@@ -134,22 +152,22 @@ const UpcomingAppointments = () => {
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col items-center justify-center gap-1 text-center">
                           <div className={`flex items-center gap-1.5 font-black text-sm ${isToday ? 'text-emerald-500' : 'text-slate-700'}`}>
                             {isToday ? 'Hoy' : appDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}
                           </div>
                           <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                            <Clock size={12} strokeWidth={3} /> {appDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                            <Clock size={12} strokeWidth={3} /> {startTime} a {endTime}
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-100 w-fit">
+                         <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-100 w-fit mx-auto">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: docColor }}></div>
                             <span className="text-[10px] font-black text-slate-700 uppercase">{app.doctorName}</span>
                          </div>
                       </td>
-                      <td className="px-8 py-6 text-right">
+                      <td className="px-8 py-6 text-center">
                         <Link 
                           to={`/scheduler/appointment/${app.id}`}
                           className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest transition-all hover:bg-primary hover:text-white hover:border-primary hover:shadow-lg active:scale-95 duration-200"

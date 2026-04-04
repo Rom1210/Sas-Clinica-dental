@@ -8,6 +8,8 @@ import {
   Users, DollarSign, Activity, 
   TrendingUp, TrendingDown, Star, Loader2, Calendar, XCircle, FileText
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Skeleton, { CardSkeleton } from '../../components/common/Skeleton';
 
 // Common Options
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -95,9 +97,22 @@ const StatisticsModule = () => {
 
   if (loading || !stats) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 gap-4 text-slate-400">
-        <Loader2 className="animate-spin" size={32} />
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sincronizando Mando Global</span>
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+        <div className="flex justify-between items-center border-b border-slate-100/50 pb-4">
+           <div className="flex flex-col gap-2">
+              <Skeleton width="200px" height="1.5rem" />
+              <Skeleton width="150px" height="0.75rem" />
+           </div>
+           <Skeleton width="300px" height="2.5rem" borderRadius="1rem" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+           {[...Array(6)].map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+           <div className="lg:col-span-12 p-8 bg-white border border-slate-100 rounded-3xl h-[400px]">
+              <Skeleton height="100%" borderRadius="1.5rem" />
+           </div>
+        </div>
       </div>
     );
   }
@@ -251,7 +266,12 @@ const StatisticsModule = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 mb-8">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="flex flex-col gap-6 mb-8"
+    >
       
       {/* Dynamic Advanced Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100/50 pb-4">
@@ -374,7 +394,14 @@ const StatisticsModule = () => {
               {appointmentTab === 'cancelled' && cancelledApps.length === 0 && <p className="text-center py-10 text-xs font-bold text-slate-400">No hay cancelaciones. ¡Excelente!</p>}
               
               {(appointmentTab === 'completed' ? completedApps : appointmentTab === 'rescheduled' ? rescheduledApps : cancelledApps).map(app => (
-                 <div key={app.id} className="p-4 bg-white border border-slate-100 rounded-2xl text-left hover:border-indigo-100 transition-colors m-2">
+                 <button 
+                    key={app.id} 
+                    onClick={() => {
+                        const id = app.id || app.originalId; 
+                        if (id) navigate(`/scheduler/appointment/${id}`);
+                    }}
+                    className="w-[calc(100%-1rem)] p-4 bg-white border border-slate-100 rounded-2xl text-left hover:border-indigo-100 hover:shadow-md transition-all m-2 cursor-pointer outline-none block"
+                 >
                     <div className="flex justify-between items-start mb-2">
                        <div className="flex flex-col">
                           <span className="text-xs font-black text-slate-800">{getPatientName(app)}</span>
@@ -384,13 +411,20 @@ const StatisticsModule = () => {
                           {new Date(app.starts_at || app.start_at).toLocaleDateString()}
                        </span>
                     </div>
-                    {app.status_reason && (
-                       <div className="mt-2 p-3 bg-slate-50/80 border border-slate-100 rounded-xl flex items-start gap-2">
-                          <FileText size={12} className="text-slate-400 mt-0.5 flex-shrink-0" />
-                          <span className="text-[11px] font-bold text-slate-600 italic">"{app.status_reason}"</span>
-                       </div>
+                    {appointmentTab !== 'completed' && (
+                        app.status_reason ? (
+                           <div className="mt-2 p-3 bg-slate-50/80 border border-slate-100 rounded-xl flex items-start gap-2 text-left">
+                              <FileText size={12} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                              <span className="text-[11px] font-bold text-slate-600 italic">"{app.status_reason}"</span>
+                           </div>
+                        ) : (
+                           <div className="mt-2 p-3 bg-slate-50/80 border border-slate-100 border-dashed rounded-xl flex items-start gap-2 text-left">
+                              <FileText size={12} className="text-slate-300 mt-0.5 flex-shrink-0" />
+                              <span className="text-[11px] font-bold text-slate-400 italic">"Sin motivo registrado"</span>
+                           </div>
+                        )
                     )}
-                 </div>
+                 </button>
               ))}
            </div>
         </div>
@@ -431,7 +465,7 @@ const StatisticsModule = () => {
         </div>
       </div>
 
-    </div>
+    </motion.div>
   );
 };
 

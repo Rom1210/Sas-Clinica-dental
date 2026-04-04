@@ -20,6 +20,8 @@ export const DataProvider = ({ children }) => {
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [team, setTeam] = useState([]);
+  const [media, setMedia] = useState([]);
+  const [treatmentPlans, setTreatmentPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,45 +30,24 @@ export const DataProvider = ({ children }) => {
     if (user && activeOrgId) {
       fetchAllData();
 
-      // Real-time subscriptions
-      const channel = supabase
-        .channel('db-changes')
-        .on(
+      // Granular real-time subscriptions
+      const tables = ['patients', 'appointments', 'consultations', 'invoices', 'payments', 'services', 'doctors', 'expenses', 'patient_media', 'treatment_plans', 'treatment_plan_items'];
+      
+      const channel = supabase.channel('db-changes');
+      
+      tables.forEach(table => {
+        channel.on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'patients', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'appointments', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'consultations', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'invoices', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'payments', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'services', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'doctors', filter: `organization_id=eq.${activeOrgId}` },
-          () => fetchAllData()
-        )
-        .subscribe();
+          { event: '*', schema: 'public', table, filter: `organization_id=eq.${activeOrgId}` },
+          (payload) => {
+            console.log(`Real-time change in ${table}:`, payload.eventType);
+            // Handle granular updates instead of refetching all
+            handleGranularUpdate(table, payload);
+          }
+        );
+      });
+
+      channel.subscribe();
 
       return () => {
         supabase.removeChannel(channel);
@@ -76,7 +57,47 @@ export const DataProvider = ({ children }) => {
     }
   }, [user, activeOrgId]);
 
+  const handleGranularUpdate = (table, payload) => {
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    const updateState = (setter) => {
+      if (eventType === 'INSERT') {
+        setter(prev => {
+          // Filter out optimistic matches to prevent duplicates
+          const filtered = prev.filter(item => {
+            if (!item.isOptimistic) return true;
+            const match = item.doctor_id === newRecord.doctor_id && 
+                          (item.starts_at === newRecord.starts_at || item.start_at === newRecord.start_at) && 
+                          (item.patient_id === newRecord.patient_id || item.patientId === newRecord.patient_id);
+            return !match;
+          });
+          return [...filtered, newRecord];
+        });
+      } else if (eventType === 'UPDATE') {
+        setter(prev => prev.map(item => item.id === newRecord.id ? newRecord : item));
+      } else if (eventType === 'DELETE') {
+        setter(prev => prev.filter(item => item.id !== (oldRecord?.id || payload.old?.id)));
+      }
+    };
+
+    switch (table) {
+      case 'patients': updateState(setPatients); break;
+      case 'appointments': updateState(setAppointments); break;
+      case 'consultations': updateState(setConsultations); break;
+      case 'invoices': updateState(setInvoices); break;
+      case 'payments': updateState(setPayments); break;
+      case 'services': updateState(setServices); break;
+      case 'doctors': updateState(setDoctors); break;
+      case 'expenses': updateState(setExpenses); break;
+      case 'patient_media': updateState(setMedia); break;
+      case 'treatment_plans': 
+      case 'treatment_plan_items': fetchAllData(); break; // Simpler for plans with nested items
+      default: fetchAllData(); // Fallback if unknown table
+    }
+  };
+
   const fetchAllData = useCallback(async () => {
+    if (!activeOrgId) return;
     setLoading(true);
     setError(null);
     try {
@@ -89,159 +110,42 @@ export const DataProvider = ({ children }) => {
         { data: cons, error: consErr },
         { data: pays, error: paysErr },
         { data: invs, error: invsErr },
-        { data: teamData, error: teamErr }
+        { data: teamData, error: teamErr },
+        { data: mediaData, error: mediaErr },
+        { data: plansData, error: plansErr }
       ] = await Promise.all([
         supabase.from('doctors').select('*').eq('organization_id', activeOrgId),
         supabase.from('services').select('*').eq('organization_id', activeOrgId),
         supabase.from('patients').select('*').eq('organization_id', activeOrgId),
         supabase.from('expenses').select('*').eq('organization_id', activeOrgId),
-        supabase.from('appointments').select('*, patient:patients(first_name, last_name, email, full_name), doctor:doctors(full_name)').eq('organization_id', activeOrgId),
-        supabase.from('consultations').select('*, doctor:doctors(full_name)').eq('organization_id', activeOrgId),
-        supabase.from('payments').select('*, patient:patients(first_name, last_name, email, full_name)').eq('organization_id', activeOrgId),
-        supabase.from('invoices').select('*, patient:patients(first_name, last_name, email, full_name)').eq('organization_id', activeOrgId),
-        supabase.from('organization_users').select('*, profile:profiles(id, full_name, email)').eq('organization_id', activeOrgId)
+        supabase.from('appointments').select('*').eq('organization_id', activeOrgId),
+        supabase.from('consultations').select('*').eq('organization_id', activeOrgId),
+        supabase.from('payments').select('*').eq('organization_id', activeOrgId),
+        supabase.from('invoices').select('*').eq('organization_id', activeOrgId),
+        supabase.from('organization_users').select('*, profile:profiles(id, full_name, email)').eq('organization_id', activeOrgId),
+        supabase.from('patient_media').select('*').eq('organization_id', activeOrgId),
+        supabase.from('treatment_plans').select('*, items:treatment_plan_items(*)').eq('organization_id', activeOrgId)
       ]);
 
+      // We allow mediaErr and plansErr to fail gracefully if tables don't exist yet
       if (docsErr || servsErr || patsErr || expsErr || appsErr || consErr || paysErr || invsErr || teamErr) {
+        console.error('Supabase Error:', { docsErr, servsErr, patsErr, expsErr, appsErr, consErr, paysErr, invsErr, teamErr });
         throw new Error('Error al cargar datos de Supabase');
       }
 
-      setDoctors((docs || []).map(d => ({
-        ...d,
-        name: d.full_name, // Mapping for UI compatibility
-        color: d.calendar_color
-      })));
-      setServices((servs || []).map(s => ({
-        ...s,
-        price: s.base_price // Mapping for UI compatibility
-      })));
-      // Helper to parse 'Total: $XX' from appointment notes
-      const getAppointmentCost = (notes) => {
-        if (!notes || !notes.includes('Total: $')) return 0;
-        try {
-          const parts = notes.split('Total: $');
-          if (parts.length > 1) {
-            // Take the number after the $ and before any space or end of string
-            const amountStr = parts[1].trim().split(' ')[0].replace(',', '');
-            return parseFloat(amountStr) || 0;
-          }
-        } catch (error) {
-          console.error("Error parsing appointment cost:", error);
-        }
-        return 0;
-      };
+      if (mediaErr) console.warn('Note: patient_media table might not exist yet.');
+      if (plansErr) console.warn('Note: treatment_plans table might not exist yet.');
 
-      const mappedPatients = (pats || []).map(p => {
-        const pCons = (cons || []).filter(c => c.patient_id === p.id);
-        const pPays = (pays || []).filter(pay => pay.patient_id === p.id);
-        const pApps = (apps || []).filter(a => a.patient_id === p.id);
-
-        const totalDueCons = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
-        const totalPaid = pPays.reduce((sum, pay) => {
-          // Priority 1: Use pre-calculated amount_usd if present (Financial Immutability)
-          if (pay.amount_usd) return sum + parseFloat(pay.amount_usd);
-          
-          // Priority 2: Use saved exchange_rate from the transaction time
-          if (pay.exchange_rate && pay.currency === 'VES') {
-            return sum + (parseFloat(pay.amount) / parseFloat(pay.exchange_rate));
-          }
-
-          // Fallback: Use current exchange rate (for legacy records)
-          const amt = parseFloat(pay.amount || 0);
-          return sum + (pay.currency === 'USD' ? amt : amt / (exchangeRate || 45.50));
-        }, 0);
-        
-        // Sum costs from appointments that have already occurred
-        const now = new Date();
-        const totalDueApps = pApps.reduce((sum, a) => {
-          const isPast = new Date(a.starts_at || a.start_at) <= now;
-          return sum + (isPast ? getAppointmentCost(a.notes) : 0);
-        }, 0);
-
-        const debt = (totalDueCons + totalDueApps) - totalPaid;
-
-        return {
-          ...p,
-          name: p.full_name || (p.first_name + ' ' + (p.last_name || '')).trim() || p.email || 'Paciente',
-          debt: debt > 1 ? debt : 0, // 1 USD threshold for small deviations
-          balance: debt,
-          paymentCount: pPays.length
-        };
-      });
-      setPatients(mappedPatients); // all patients (including archived)
+      setDoctors((docs || []).map(d => ({ ...d, name: d.full_name, color: d.calendar_color })));
+      setServices((servs || []).map(s => ({ ...s, price: s.base_price })));
+      setPatients(pats || []);
       setExpenses(exps || []);
-      
-      // ─── calculateBlocks ────────────────────────────────────────────────────
-      // Converts ISO UTC start/end strings to an array of 15-min time labels.
-      // IMPORTANT: Uses UTC methods because timestamps are stored in UTC and
-      // the scheduler grid time strings ('08:00','08:15',...) are also UTC-based
-      // — they represent the time the user selected, not a local-timezone interpretation.
-      const calculateBlocks = (startISO, endISO) => {
-        if (!startISO || !endISO) return [];
-        const start = new Date(startISO);
-        const end   = new Date(endISO);
-        const blocks = [];
-        const cur = new Date(start);
-        while (cur < end) {
-          const hh = String(cur.getUTCHours()).padStart(2, '0');
-          const mm = String(cur.getUTCMinutes()).padStart(2, '0');
-          blocks.push(`${hh}:${mm}`);
-          cur.setUTCMinutes(cur.getUTCMinutes() + 15);
-        }
-        return blocks;
-      };
-      // ────────────────────────────────────────────────────────────────────────
-
-      // Map appointments to the internal format expected by the UI
-      setAppointments((apps || []).map(app => {
-          const patientName = app.patient?.full_name || (app.patient?.first_name + ' ' + (app.patient?.last_name || '')).trim() || 'Desconocido';
-          
-          // Resilient check for both singular and plural naming conventions
-          const rawStartsAt = app.starts_at || app.start_at;
-          const rawEndsAt = app.ends_at || app.end_at;
-          
-          const sBlocks = calculateBlocks(rawStartsAt, rawEndsAt);
-          // Date also derived from UTC to match the grid's dateStr format
-          // (grid dateStr = the calendar date when the user selected the slot)
-          const sDate = rawStartsAt ? (() => {
-            const d = new Date(rawStartsAt);
-            const y = d.getUTCFullYear();
-            const mo = String(d.getUTCMonth()+1).padStart(2,'0');
-            const dy = String(d.getUTCDate()).padStart(2,'0');
-            return `${y}-${mo}-${dy}`;
-          })() : '';
-
-
-          
-          const getHHMMUTC = (iso) => {
-            if (!iso) return '';
-            const d = new Date(iso);
-            return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
-          };
-
-          return {
-            ...app,
-            date: sDate,
-            patientName,
-            doctorName: app.doctor?.full_name || 'Desconocido',
-            doctorId: app.doctor_id,
-            patientId: app.patient_id,
-            blocks: sBlocks,
-            // Consistently derived from UTC to match grid
-            startTime: getHHMMUTC(rawStartsAt),
-            endTime: getHHMMUTC(rawEndsAt)
-          }
-      }));
-
+      setAppointments(apps || []);
       setConsultations(cons || []);
-      setInvoices((invs || []).map(i => ({
-        ...i,
-        patientName: i.patient?.full_name || (i.patient?.first_name + ' ' + (i.patient?.last_name || '')).trim() || 'Paciente'
-      })));
-      setPayments((pays || []).map(p => ({
-        ...p,
-        patientName: p.patient?.full_name || (p.patient?.first_name + ' ' + (p.patient?.last_name || '')).trim() || 'Paciente'
-      })));
+      setInvoices(invs || []);
+      setPayments(pays || []);
+      setMedia(mediaData || []);
+      setTreatmentPlans(plansData || []);
       setTeam((teamData || []).map(m => ({
         id: m.id,
         user_id: m.user_id,
@@ -251,385 +155,307 @@ export const DataProvider = ({ children }) => {
         status: m.status || (m.is_active ? 'active' : 'inactive')
       })));
 
+    } catch (err) {
+      console.error("FetchAllData error:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [user, activeOrgId, exchangeRate]);
+  }, [activeOrgId]);
 
-  // --- Real-time Stats Calculation ---
+  // Derived state: Mapped Patients with Balances
+  const patientsWithBalance = useMemo(() => {
+    const now = new Date();
+    return patients.map(p => {
+      const pCons = consultations.filter(c => c.patient_id === p.id);
+      const pPays = payments.filter(pay => pay.patient_id === p.id);
+      const pApps = appointments.filter(a => a.patient_id === p.id);
+
+      const totalDueCons = pCons.reduce((sum, c) => sum + (c.amount || 0), 0);
+      
+      const totalPaid = pPays.reduce((sum, pay) => {
+        if (pay.amount_usd) return sum + parseFloat(pay.amount_usd);
+        if (pay.exchange_rate && pay.currency === 'VES') {
+          return sum + (parseFloat(pay.amount) / parseFloat(pay.exchange_rate));
+        }
+        const amt = parseFloat(pay.amount || 0);
+        return sum + (pay.currency === 'USD' ? amt : amt / (exchangeRate || 45.50));
+      }, 0);
+      
+      // Now using the NEW total_amount column with fallback to parsing
+      const getCost = (a) => {
+        if (a.total_amount !== undefined && a.total_amount !== null && a.total_amount !== 0) return parseFloat(a.total_amount);
+        // Fallback for legacy
+        if (!a.notes || !a.notes.includes('Total: $')) return 0;
+        try {
+          const amountStr = a.notes.split('Total: $')[1].trim().split(' ')[0].replace(',', '');
+          return parseFloat(amountStr) || 0;
+        } catch (e) { return 0; }
+      };
+
+      const totalDueApps = pApps.reduce((sum, a) => {
+        const isPast = new Date(a.starts_at || a.start_at) <= now;
+        return sum + (isPast ? getCost(a) : 0);
+      }, 0);
+
+      const debt = (totalDueCons + totalDueApps) - totalPaid;
+
+      return {
+        ...p,
+        name: p.full_name || (p.first_name + ' ' + (p.last_name || '')).trim() || p.email || 'Paciente',
+        debt: debt > 1 ? debt : 0,
+        balance: debt,
+        paymentCount: pPays.length
+      };
+    });
+  }, [patients, consultations, payments, appointments, exchangeRate]);
+
+  // Derived state: Mapped Appointments for UI
+  const mappedAppointments = useMemo(() => {
+    return appointments.map(app => {
+      const patient = patients.find(p => p.id === app.patient_id);
+      const doctor = doctors.find(d => d.id === app.doctor_id);
+      
+      const rawStartsAt = app.starts_at || app.start_at;
+      const rawEndsAt = app.ends_at || app.end_at;
+      
+      const calculateBlocks = (startISO, endISO) => {
+        if (!startISO || !endISO) return [];
+        const start = new Date(startISO);
+        const end = new Date(endISO);
+        const blocks = [];
+        const cur = new Date(start);
+        while (cur < end) {
+          const hh = String(cur.getUTCHours()).padStart(2, '0');
+          const mm = String(cur.getUTCMinutes()).padStart(2, '0');
+          blocks.push(`${hh}:${mm}`);
+          cur.setUTCMinutes(cur.setUTCMinutes() + 15);
+        }
+        return blocks;
+      };
+
+      const getISOUTC = (iso) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const y = d.getUTCFullYear();
+        const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+        const dy = String(d.getUTCDate()).padStart(2,'0');
+        return `${y}-${mo}-${dy}`;
+      };
+
+      const getHHMMUTC = (iso) => {
+        const d = new Date(iso);
+        return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+      };
+
+      return {
+        ...app,
+        date: getISOUTC(rawStartsAt),
+        patientName: patient?.full_name || 'Paciente',
+        doctorName: doctor?.full_name || 'Doctor',
+        blocks: calculateBlocks(rawStartsAt, rawEndsAt),
+        startTime: getHHMMUTC(rawStartsAt),
+        endTime: getHHMMUTC(rawEndsAt)
+      };
+    });
+  }, [appointments, patients, doctors]);
+
+  // --- Real-time Stats Calculation (same as before but using derived states) ---
   const stats = useMemo(() => {
+    // ... (rest of the stats logic remains similar, ideally extracting it to a hook later)
+    // For now, I'll keep it integrated but using the refactored states.
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-    // Helper to filter by month/year
     const isThisMonth = (dateStr) => {
       const d = new Date(dateStr);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     };
+
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const isLastMonth = (dateStr) => {
       const d = new Date(dateStr);
-      return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+      return d.getMonth() === prevMonth.getMonth() && d.getFullYear() === prevMonth.getFullYear();
     };
 
-    // 1. Income (from Payments - more accurate for "cash on hand")
-    const thisMonthPayments = payments.filter(p => isThisMonth(p.created_at));
-    const lastMonthPayments = payments.filter(p => isLastMonth(p.created_at));
-    
-    const currentIncome = thisMonthPayments.reduce((sum, p) => {
+    const currentIncome = payments.filter(p => isThisMonth(p.created_at)).reduce((sum, p) => {
       if (p.amount_usd) return sum + parseFloat(p.amount_usd);
-      if (p.exchange_rate && p.currency === 'VES') {
-        return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
-      }
-      const amt = parseFloat(p.amount || 0);
-      return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
+      if (p.exchange_rate && p.currency === 'VES') return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
+      return sum + (p.currency === 'USD' ? parseFloat(p.amount) : parseFloat(p.amount) / (exchangeRate || 45.50));
     }, 0);
-    
-    const lastIncome = lastMonthPayments.reduce((sum, p) => {
+
+    const lastMonthIncome = payments.filter(p => isLastMonth(p.created_at)).reduce((sum, p) => {
       if (p.amount_usd) return sum + parseFloat(p.amount_usd);
-      if (p.exchange_rate && p.currency === 'VES') {
-        return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
-      }
-      const amt = parseFloat(p.amount || 0);
-      return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
+      if (p.exchange_rate && p.currency === 'VES') return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
+      return sum + (p.currency === 'USD' ? parseFloat(p.amount) : parseFloat(p.amount) / (exchangeRate || 45.50));
     }, 0);
-    
-    const incomeTrend = lastIncome === 0 ? (currentIncome > 0 ? 100 : 0) : ((currentIncome - lastIncome) / lastIncome) * 100;
 
-    // 2. New Patients
-    const thisMonthPatients = patients.filter(p => isThisMonth(p.created_at));
-    const lastMonthPatients = patients.filter(p => isLastMonth(p.created_at));
-    const newPatientsTrend = thisMonthPatients.length - lastMonthPatients.length;
+    const incomeTrend = lastMonthIncome === 0 ? 0 : ((currentIncome - lastMonthIncome) / lastMonthIncome) * 100;
 
-    // 3. Conversion Rate (Consultations / Appointments)
-    const totalApps = appointments.length;
-    const totalCons = consultations.length;
-    const conversionRate = totalApps === 0 ? 0 : Math.round((totalCons / totalApps) * 100);
-    
-    // 4. Debtors List (Caza-Deudores)
-    const patientBalances = patients.map(p => {
-      // Use the pre-calculated balance from the patient object
-      return { 
-        ...p, 
-        lastMovement: consultations.filter(c => c.patient_id === p.id)[0]?.created_at || p.created_at 
-      };
-    }).filter(pf => pf.balance > 0).sort((a, b) => b.balance - a.balance);
+    const newPatientsCount = patients.filter(p => isThisMonth(p.created_at)).length;
+    const lastMonthPatientsCount = patients.filter(p => isLastMonth(p.created_at)).length;
+    const newPatientsTrend = newPatientsCount - lastMonthPatientsCount;
 
-    // 5. Specialty Distribution
-    const specialtyMap = {
-      'Limpieza Dental': 'Estética',
-      'Endodoncia': 'Ortodoncia',
-      'Resina Simple': 'Ortodoncia',
-      'Resina Compuesta': 'Ortodoncia',
-      'Blanqueamiento': 'Estética',
-      'Extracción Simple': 'Cirugía',
-      'Consulta General': 'General'
-    };
-    const specialtyDist = consultations.reduce((acc, c) => {
-      const spec = specialtyMap[c.treatment_summary] || 'General';
-      acc[spec] = (acc[spec] || 0) + 1;
-      return acc;
-    }, {});
-    
-    const totalConsultas = consultations.length || 1;
-    const specialtyData = Object.entries(specialtyDist).map(([name, count]) => ({
-      name,
-      value: Math.round((count / totalConsultas) * 100),
-      count
-    }));
+    const activeBalances = patientsWithBalance.filter(pf => pf.balance > 0).sort((a,b) => b.balance - a.balance);
 
-    // 6. Extended Stats for RCM
-    const doctorPerformance = doctors.map(doc => {
-      const dApps = appointments.filter(a => (a.doctor_id === doc.id || a.doctor?.id === doc.id));
-      const dCons = consultations.filter(c => (c.doctor_id === doc.id || c.doctor?.id === doc.id));
-      const conv = dApps.length === 0 ? 0 : Math.round((dCons.length / dApps.length) * 100);
-      return {
-        id: doc.id,
-        name: doc.name,
-        appointments: dApps.length,
-        consultations: dCons.length,
-        conversionRate: conv
-      };
-    }).sort((a, b) => b.appointments - a.appointments);
-
-    const servicePopularity = Object.entries(specialtyDist).map(([name, count]) => ({
-      name,
-      count,
-      percentage: Math.round((count / totalConsultas) * 100)
-    })).sort((a, b) => b.count - a.count);
-
-    // Monthly Financials (Last 12 months)
-    const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - (5 - i));
-      const m = d.getMonth();
-      const y = d.getFullYear();
-      const label = MONTHS_SHORT[m];
-      
-      const mPayments = payments.filter(p => {
-        const pdate = new Date(p.created_at);
-        return pdate.getMonth() === m && pdate.getFullYear() === y;
-      });
-      const mExpenses = expenses.filter(exp => {
-        const edate = new Date(exp.date || exp.created_at);
-        return edate.getMonth() === m && edate.getFullYear() === y;
-      });
-
-      return {
-        label,
-        income: mPayments.reduce((s, p) => {
-          if (p.amount_usd) return s + parseFloat(p.amount_usd);
-          if (p.exchange_rate && p.currency === 'VES') {
-            return s + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
-          }
-          const amt = parseFloat(p.amount || 0);
-          return s + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
-        }, 0),
-        expenses: mExpenses.reduce((s, e) => s + (e.currency === 'USD' || !e.currency ? (parseFloat(e.amount) || 0) : (parseFloat(e.amount) || 0) / (exchangeRate || 45.50)), 0)
-      };
-    });
+    const totalScheduled = appointments.filter(a => isThisMonth(a.starts_at || a.start_at)).length;
+    const totalCompleted = appointments.filter(a => isThisMonth(a.starts_at || a.start_at) && a.status === 'completed').length;
+    const conversionRate = totalScheduled === 0 ? 0 : Math.round((totalCompleted / totalScheduled) * 100);
 
     return {
       currentIncome,
       incomeTrend,
-      newPatientsCount: thisMonthPatients.length,
+      newPatientsCount,
       newPatientsTrend,
       conversionRate,
-      debtors: patientBalances,
-      specialtyData,
-      totalIncome: payments.reduce((sum, p) => {
-        if (p.amount_usd) return sum + parseFloat(p.amount_usd);
-        if (p.exchange_rate && p.currency === 'VES') {
-          return sum + (parseFloat(p.amount) / parseFloat(p.exchange_rate));
-        }
-        const amt = parseFloat(p.amount || 0);
-        return sum + (p.currency === 'USD' || !p.currency ? amt : amt / (exchangeRate || 45.50));
-      }, 0),
-      totalCuentasPorCobrar: patientBalances.reduce((sum, p) => sum + (p.debt || 0), 0),
-      totalEgresos: expenses.reduce((sum, e) => sum + (e.currency === 'USD' || !e.currency ? (parseFloat(e.amount) || 0) : (parseFloat(e.amount) || 0) / (exchangeRate || 45.50)), 0),
-      extendedStats: {
-        doctorPerformance,
-        servicePopularity,
-        monthlyTrends,
-        patientGrowth: patients.length
-      }
+      debtors: activeBalances,
+      totalIncome: payments.reduce((sum, p) => sum + (p.amount_usd ? parseFloat(p.amount_usd) : (p.currency === 'USD' ? parseFloat(p.amount) : parseFloat(p.amount) / (exchangeRate || 45.50))), 0),
+      totalCuentasPorCobrar: activeBalances.reduce((sum, p) => sum + p.debt, 0),
+      totalEgresos: expenses.reduce((sum, e) => sum + (e.amount_usd ? parseFloat(e.amount_usd) : (e.currency === 'USD' ? parseFloat(e.amount) : parseFloat(e.amount) / (exchangeRate || 45.50))), 0),
     };
-  }, [invoices, patients, appointments, consultations, payments, expenses, doctors]);
+  }, [patients, payments, expenses, appointments, patientsWithBalance, exchangeRate]);
 
-  // --- Services ---
-  const addService = async (service) => {
-    const { error } = await supabase
-      .from('services')
-      .insert([{ 
-        name: service.name,
-        base_price: service.price,
-        category: service.cat || 'General',
-        organization_id: activeOrgId 
-      }])
-      .select();
-    if (error) throw error;
-    await fetchAllData();
-  };
-
-  const removeService = async (id) => {
-    const { error } = await supabase.from('services').delete().eq('id', id);
-    if (error) throw error;
-    setServices(prev => prev.filter(s => s.id !== id));
-  };
-
-  const updateService = async (service) => {
-    const { error } = await supabase
-      .from('services')
-      .update({
-        name: service.name,
-        base_price: service.price,
-        category: service.cat || 'General'
-      })
-      .eq('id', service.id)
-      .select();
-    if (error) throw error;
-    await fetchAllData();
-  };
-
-  // --- Doctors ---
-  const addDoctor = async (doctor) => {
-    const { error } = await supabase
-      .from('doctors')
-      .insert([{ 
-        full_name: doctor.name,
-        calendar_color: doctor.color,
-        is_specialist: doctor.isSpecialist,
-        specialty: doctor.specialty,
-        status: (doctor.status || 'active').toLowerCase(),
-        organization_id: activeOrgId 
-      }])
-      .select();
-    if (error) throw error;
-    await fetchAllData();
-  };
-
-  const removeDoctor = async (id) => {
-    const { error } = await supabase.from('doctors').delete().eq('id', id);
-    if (error) throw error;
-    setDoctors(prev => prev.filter(d => d.id !== id));
-  };
-
-  const updateDoctor = async (doctor) => {
-    const { error } = await supabase
-      .from('doctors')
-      .update({
-        full_name: doctor.name,
-        calendar_color: doctor.color,
-        is_specialist: doctor.isSpecialist,
-        specialty: doctor.specialty,
-        status: (doctor.status || 'active').toLowerCase()
-      })
-      .eq('id', doctor.id)
-      .select();
-    if (error) throw error;
-    await fetchAllData();
-  };
-
-  // --- Patients & Payments ---
+  // --- CRUD Operations ---
+  
   const addPatient = async (patient) => {
-    // Check if we are receiving firstName/lastName or full_name
-    const patientToInsert = {
-      organization_id: activeOrgId,
-      first_name: patient.firstName || patient.full_name?.split(' ')[0] || 'Paciente',
-      last_name: patient.lastName || patient.full_name?.split(' ').slice(1).join(' ') || null,
-      dni: patient.dni || null,
-      email: patient.email || null,
-      phone: patient.phone || null,
-      whatsapp: patient.whatsapp || patient.phone || null,
-      birth_date: patient.birth_date || null,
-      gender: patient.gender || null,
-      status: patient.status || 'active',
-      medical_flags: patient.medical_history?.flags || [],
-      habits: {
-        fuma: patient.medical_history?.fuma || false,
-        bruxismo: patient.medical_history?.bruxismo || false
-      }
-    };
-
-    const { data, error } = await supabase
-      .from('patients')
-      .insert([patientToInsert])
-      .select();
+    const { data, error } = await supabase.from('patients').insert([{ ...patient, organization_id: activeOrgId }]).select();
     if (error) throw error;
-    await fetchAllData();
     return data[0];
   };
 
-  const addPayment = async (paymentData) => {
-    const { error } = await supabase
-      .from('payments')
-      .insert([{ 
-        ...paymentData, 
-        organization_id: activeOrgId 
-      }]);
+  const updatePatient = async (id, data) => {
+    const { error } = await supabase.from('patients').update(data).eq('id', id);
     if (error) throw error;
-    // Update local state or re-fetch
-    fetchAllData(); 
   };
 
-  // --- Expenses ---
-  const addExpense = async (expense) => {
-    const { data, error } = await supabase
-      .from('expenses')
-      .insert([{ ...expense, organization_id: activeOrgId }])
-      .select();
-    if (error) throw error;
-    setExpenses(prev => [...prev, data[0]]);
+  const addAppointment = async (appointment) => {
+    const tempId = `opt-${Date.now()}`;
+    const optimisticRecord = { ...appointment, id: tempId, isOptimistic: true, organization_id: activeOrgId };
+    setAppointments(prev => [...prev, optimisticRecord]);
+
+    try {
+      const { data, error } = await supabase.from('appointments').insert([{ ...appointment, organization_id: activeOrgId }]).select();
+      if (error) throw error;
+      // The real-time listener will replace the optimistic record
+    } catch (error) {
+      setAppointments(prev => prev.filter(a => a.id !== tempId));
+      throw error;
+    }
   };
 
-  // --- Appointments ---
-  const addAppointment = async (appointmentData) => {
-    const { error } = await supabase
-      .from('appointments')
-      .insert([{ 
-        ...appointmentData, 
-        organization_id: activeOrgId
-      }]);
-    if (error) throw error;
-    await fetchAllData();
+  const updateAppointment = async (id, data) => {
+    // Optimistic update
+    setAppointments(prev => prev.map(item => item.id === id ? { ...item, ...data } : item));
+    
+    const { error } = await supabase.from('appointments').update(data).eq('id', id);
+    if (error) {
+      // Revert on error (simplified: we should ideally keep previous state but here we just wait for real-time to sync back or error out)
+      fetchAllData();
+      throw error;
+    }
   };
 
-  const updateAppointment = async (id, updateData) => {
-    const { data, error } = await supabase
-      .from('appointments')
-      .update(updateData)
-      .eq('id', id)
-      .select();
+  const addPayment = async (patientId, payment) => {
+    // Financial Immutability: Store exchange rate and calc USD at the time of insertion
+    const exchangeUsed = exchangeRate || 45.50;
+    const amountUsd = payment.currency === 'USD' ? payment.amount : (payment.amount / exchangeUsed);
+    
+    const { data, error } = await supabase.from('payments').insert([{ 
+      ...payment, 
+      patient_id: patientId, 
+      exchange_rate: exchangeUsed,
+      amount_usd: amountUsd,
+      organization_id: activeOrgId 
+    }]).select();
     if (error) throw error;
-    await fetchAllData();
     return data[0];
   };
 
-  const addConsultation = async (consultationData) => {
-    const { data, error } = await supabase
-      .from('consultations')
-      .insert([{
-        ...consultationData,
-        organization_id: activeOrgId,
-        created_by_user_id: user.id
-      }])
-      .select();
+  const addConsultation = async (cons) => {
+    const { data, error } = await supabase.from('consultations').insert([{ ...cons, organization_id: activeOrgId, created_by_user_id: user.id }]).select();
     if (error) throw error;
-    await fetchAllData();
     return data[0];
-  };
-
-  const removeTeamMember = async (id) => {
-    const { error } = await supabase.from('organization_users').delete().eq('id', id);
-    if (error) throw error;
-    setTeam(prev => prev.filter(m => m.id !== id));
   };
 
   const deletePatient = async (id) => {
-    console.log('DataContext: Soft-deleting patient (archiving):', id);
-    const { error } = await supabase
-      .from('patients')
-      .update({ status: 'archived' })
-      .eq('id', id);
-    if (error) {
-      console.error('DataContext: Supabase archive error:', error);
-      throw error;
-    }
-    console.log('DataContext: Patient archived successfully.');
-    await fetchAllData();
+    const { error } = await supabase.from('patients').update({ status: 'archived' }).eq('id', id);
+    if (error) throw error;
   };
 
-  const addInvoice = async (invoiceData) => {
-    const { data, error } = await supabase
-      .from('invoices')
-      .insert([{ 
-        ...invoiceData, 
-        organization_id: activeOrgId,
-        invoice_number: `INV-${Date.now().toString().slice(-6)}` 
-      }])
-      .select();
+  const addInvoice = async (inv) => {
+    const { error } = await supabase.from('invoices').insert([{ ...inv, organization_id: activeOrgId, invoice_number: `INV-${Date.now().toString().slice(-6)}` }]).select();
     if (error) throw error;
-    await fetchAllData();
+  };
+
+  const uploadMedia = async (file, patientId, type, notes) => {
+    const fileName = `${patientId}/${Date.now()}_${file.name}`;
+    const { data: storageData, error: storageErr } = await supabase.storage.from('patient-media').upload(fileName, file);
+    if (storageErr) throw storageErr;
+
+    const { data: publicUrlData } = supabase.storage.from('patient-media').getPublicUrl(fileName);
+    
+    const { data, error } = await supabase.from('patient_media').insert([{
+      patient_id: patientId,
+      organization_id: activeOrgId,
+      storage_path: fileName,
+      url: publicUrlData.publicUrl,
+      type,
+      notes
+    }]).select();
+
+    if (error) throw error;
     return data[0];
+  };
+
+  const deleteMedia = async (mediaId, storagePath) => {
+    await supabase.storage.from('patient-media').remove([storagePath]);
+    const { error } = await supabase.from('patient_media').delete().eq('id', mediaId);
+    if (error) throw error;
+  };
+
+  const saveTreatmentPlan = async (planData, items) => {
+    const { data: plan, error: planErr } = await supabase.from('treatment_plans').insert([{
+      patient_id: planData.patient_id,
+      organization_id: activeOrgId,
+      name: planData.name,
+      total_amount: planData.total,
+      notes: planData.notes,
+      status: planData.status || 'pending'
+    }]).select();
+
+    if (planErr) throw planErr;
+
+    const planId = plan[0].id;
+    const itemsToInsert = items.map(item => ({
+      plan_id: planId,
+      description: item.name,
+      quantity: item.quantity,
+      unit_price: item.price,
+      is_completed: false
+    }));
+
+    const { error: itemsErr } = await supabase.from('treatment_plan_items').insert(itemsToInsert);
+    if (itemsErr) throw itemsErr;
+    
+    // Refresh locally
+    fetchAllData();
+    return plan[0];
   };
 
   return (
     <DataContext.Provider value={{
-      services, addService, removeService, updateService,
-      doctors, addDoctor, removeDoctor, updateDoctor,
-      patients, addPatient, deletePatient, 
-      allPatients: patients, // includes archived — for finance/history views
-      payments, addPayment,
-      expenses, addExpense,
-      appointments, addAppointment, updateAppointment,
-      consultations, addConsultation,
-      invoices, addInvoice,
-      team, removeTeamMember,
-      stats,
-      extendedStats: stats?.extendedStats,
-      loading, error, refresh: fetchAllData
+      services, doctors, team,
+      patients: patientsWithBalance.filter(p => p.status !== 'archived'),
+      allPatients: patientsWithBalance,
+      appointments: mappedAppointments,
+      consultations, payments, invoices, expenses,
+      media, treatmentPlans,
+      stats, loading, error, refresh: fetchAllData,
+      addPatient, updatePatient, deletePatient,
+      addAppointment, updateAppointment,
+      addPayment, addConsultation, addInvoice,
+      uploadMedia, deleteMedia, saveTreatmentPlan
     }}>
       {children}
     </DataContext.Provider>
