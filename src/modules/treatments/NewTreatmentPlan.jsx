@@ -1,12 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, MoreVertical } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Plus, Trash2, DollarSign, ListChecks, Search,
+  ChevronRight, X, ArrowLeft, CheckCircle2
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useData } from '../../context/DataContext';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const NewTreatmentPlan = ({ onCancel, onSave, initialData = null }) => {
+  const { services } = useData();
   const [planName, setPlanName] = useState('');
   const [treatmentName, setTreatmentName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState('');
+  const [currentServiceId, setCurrentServiceId] = useState(null);
   const [items, setItems] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [pendingRemoveId, setPendingRemoveId] = useState(null);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (initialData) {
@@ -15,239 +26,452 @@ const NewTreatmentPlan = ({ onCancel, onSave, initialData = null }) => {
     }
   }, [initialData]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+        setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleAddItem = () => {
     if (!treatmentName || !unitPrice) return;
-    
-    setItems([
-      ...items,
-      {
-        id: Date.now(),
-        name: treatmentName,
-        quantity: parseInt(quantity) || 1,
-        price: parseFloat(unitPrice) || 0
-      }
-    ]);
-    
-    // Reset form
+    setItems([...items, {
+      id: Date.now(),
+      name: treatmentName,
+      service_id: currentServiceId,
+      quantity: parseInt(quantity) || 1,
+      price: parseFloat(unitPrice) || 0,
+    }]);
     setTreatmentName('');
     setQuantity(1);
     setUnitPrice('');
+    setCurrentServiceId(null);
+    setShowSuggestions(false);
   };
 
-  const handleUpdateItem = (id, field, value) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        let updatedValue = value;
-        if (field === 'quantity') updatedValue = parseInt(value) || 0;
-        if (field === 'price') updatedValue = parseFloat(value) || 0;
-        return { ...item, [field]: updatedValue };
-      }
-      return item;
-    }));
+  const handleRemoveItem = (id) => setPendingRemoveId(id);
+  const confirmRemoveItem = () => {
+    setItems(items.filter(i => i.id !== pendingRemoveId));
+    setPendingRemoveId(null);
   };
 
-  const handleRemoveItem = (id) => {
-    setItems(items.filter(item => item.id !== id));
-  };
-
-  const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  const totalAmount = items.reduce((sum, i) => sum + i.quantity * i.price, 0);
 
   const handleCreatePlan = () => {
-    if (!planName || items.length === 0) return; // Basic validation
-    const newId = initialData ? initialData.id : Date.now();
+    if (items.length === 0) { alert('Agrega al menos un tratamiento a la lista.'); return; }
+    const finalName = planName.trim() || 'Plan de Tratamiento General';
     onSave({
-      id: newId,
-      name: planName,
+      id: initialData ? initialData.id : Date.now(),
+      name: finalName,
       items,
       total: totalAmount,
-      date: initialData ? initialData.date : new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+      date: initialData?.date ?? new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+      notes: `Resumen de ${items.length} tratamientos.`,
     });
   };
 
+  const filteredServices = services
+    .filter(s => s.name.toLowerCase().includes(treatmentName.toLowerCase()))
+    .slice(0, 6);
+
+  const handleSelectService = (s) => {
+    setTreatmentName(s.name);
+    setUnitPrice(s.price);
+    setCurrentServiceId(s.id);
+    setShowSuggestions(false);
+  };
+
   const isEditing = !!initialData;
+  const canSave = items.length > 0;
+
+  /* ── Shared input style ── */
+  const inputStyle = {
+    width: '100%',
+    background: '#F8FAFC',
+    border: '1.5px solid #EEF2F7',
+    borderRadius: '1rem',
+    padding: '0.75rem 1rem',
+    fontSize: '0.875rem',
+    fontWeight: 700,
+    color: '#0F172A',
+    outline: 'none',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+  };
+
+  const inputFocusHandlers = {
+    onFocus: (e) => { e.currentTarget.style.borderColor = 'rgba(37,99,235,0.4)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(37,99,235,0.06)'; },
+    onBlur:  (e) => { e.currentTarget.style.borderColor = '#EEF2F7'; e.currentTarget.style.boxShadow = 'none'; },
+  };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300 w-full mb-8">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
-          {isEditing ? 'Editar plan de tratamiento' : 'Nuevo plan de tratamiento'}
-        </h2>
-        <button 
-          type="button"
+    <>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', paddingBottom: '3rem' }}
+    >
+
+      {/* ── Top bar ─────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '1.1rem 1.5rem',
+        background: '#ffffff',
+        border: '1px solid #EEF2F7',
+        borderRadius: '1.5rem',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '14px',
+            background: 'rgba(37,99,235,0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#2563EB',
+          }}>
+            <ListChecks size={20} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '0.9375rem', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>
+              {isEditing ? 'Editar Plan de Tratamiento' : 'Nuevo Plan de Tratamiento'}
+            </h2>
+            <p style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600, marginTop: '0.1rem' }}>
+              Configuración de procedimientos y costos
+            </p>
+          </div>
+        </div>
+
+        <button
           onClick={onCancel}
-          className="text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors border-none bg-transparent cursor-pointer"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.55rem 1.1rem',
+            background: '#F8FAFC', border: '1.5px solid #EEF2F7',
+            borderRadius: '999px', cursor: 'pointer',
+            fontSize: '0.72rem', fontWeight: 800,
+            color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em',
+            transition: 'all 0.2s',
+          }}
+          onMouseOver={e => { e.currentTarget.style.borderColor = '#FECACA'; e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEF2F2'; }}
+          onMouseOut={e =>  { e.currentTarget.style.borderColor = '#EEF2F7'; e.currentTarget.style.color = '#64748B'; e.currentTarget.style.background = '#F8FAFC'; }}
         >
-          Cancelar
+          <X size={14} /> Cancelar
         </button>
       </div>
 
-      <div className="bg-white rounded-[20px] p-8 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col gap-10">
-        
-        {/* Basic Info Section */}
-        <div className="flex flex-col gap-6 relative">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Información del plan de tratamiento</h3>
-          
-          <div className="flex items-center justify-between">
-            <div className="w-[60%]">
-              <input 
-                type="text" 
-                placeholder="Nombre del plan de tratamiento" 
-                className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent placeholder:text-slate-400"
-                style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
-                value={planName}
-                onChange={e => setPlanName(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex flex-col items-center gap-3 absolute right-4 top-2">
-              <span className="text-sm text-slate-600 font-medium tracking-tight">Progreso del plan</span>
-              <div className="w-16 h-16 rounded-full border-[3px] border-[#0070AC] flex items-center justify-center bg-white shadow-sm" style={{ borderColor: 'var(--primary, #0070AC)' }}>
-                <span className="text-lg font-bold text-slate-500 tracking-wider">0 / {items.length || 0}</span>
-              </div>
-            </div>
+      {/* ── Body — split layout ──────────────────────────── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 300px',
+        gap: '1.25rem',
+        alignItems: 'start',
+      }}>
+
+        {/* ══ LEFT column ══════════════════════════════════ */}
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid #EEF2F7',
+          borderRadius: '1.75rem',
+          padding: '2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.75rem',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.04)',
+        }}>
+
+          {/* Plan name */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Nombre del plan
+            </label>
+            <input
+              type="text"
+              placeholder="Ej: Rehabilitación estética completa..."
+              style={{ ...inputStyle, fontSize: '0.9375rem', padding: '0.875rem 1.1rem' }}
+              value={planName}
+              onChange={e => setPlanName(e.target.value)}
+              {...inputFocusHandlers}
+            />
           </div>
-        </div>
 
-        {/* Add Treatments Section */}
-        <div className="flex flex-col gap-6 mt-4">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Agregar tratamientos</h3>
-          
-          <div className="flex flex-col gap-4">
-            {/* Treatment List Items - Editable Rows */}
-            {items.map((item) => (
-              <div key={item.id} className="relative bg-white p-6 rounded-[20px] border border-slate-200 shadow-sm flex flex-col md:flex-row items-end gap-6 group">
-                <div className="flex-1 w-full">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 block">Nombre</label>
-                  <input 
-                    type="text" 
-                    className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent font-medium"
-                    style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
-                    value={item.name}
-                    onChange={e => handleUpdateItem(item.id, 'name', e.target.value)}
-                  />
-                </div>
-                
-                <div className="w-full md:w-24">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 block">Cantidad</label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent font-medium"
-                    style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
-                    value={item.quantity}
-                    onChange={e => handleUpdateItem(item.id, 'quantity', e.target.value)}
+          {/* Divider */}
+          <div style={{ borderTop: '1px solid #F1F5F9' }} />
+
+          {/* Add-item row */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Agregar procedimiento
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 44px', gap: '0.6rem', alignItems: 'center' }}>
+
+              {/* Service search */}
+              <div style={{ position: 'relative' }} ref={dropdownRef}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#CBD5E1', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    placeholder="Procedimiento o servicio..."
+                    style={{ ...inputStyle, paddingLeft: '2.25rem' }}
+                    value={treatmentName}
+                    onChange={e => { setTreatmentName(e.target.value); setShowSuggestions(true); }}
+                    onFocus={e => { setShowSuggestions(true); inputFocusHandlers.onFocus(e); }}
+                    onBlur={inputFocusHandlers.onBlur}
                   />
                 </div>
 
-                <div className="w-full md:w-32">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 block">Precio Unitario</label>
-                  <input 
-                    type="number" 
-                    className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent font-medium"
-                    style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
-                    value={item.price}
-                    onChange={e => handleUpdateItem(item.id, 'price', e.target.value)}
-                  />
-                </div>
-
-                <div className="w-full md:w-20">
-                  <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 block">Total</label>
-                  <div 
-                    className="w-full pb-2 border-b border-slate-300 text-sm font-bold text-slate-700"
-                    style={{ fontSize: '15px', height: '31px', borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}
-                  >
-                    {(item.quantity * item.price).toFixed(0)}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 mb-2">
-                  <button 
-                    onClick={() => handleRemoveItem(item.id)}
-                    className="p-2 text-slate-400 hover:text-rose-500 transition-colors bg-transparent border-none cursor-pointer"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                  <div className="text-slate-300">
-                    <MoreVertical size={18} />
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Main Add Row */}
-            <div className="bg-white p-6 rounded-[20px] border-2 border-dashed border-slate-200 flex flex-col md:flex-row items-end gap-6 shadow-sm mt-2">
-              <div className="flex-1 w-full">
-                <input 
-                  type="text" 
-                  placeholder="Nombre del tratamiento" 
-                  className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent font-medium placeholder:text-slate-400"
-                  style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
-                  value={treatmentName}
-                  onChange={e => setTreatmentName(e.target.value)}
-                />
-              </div>
-              
-              <div className="w-full md:w-24">
-                <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1.5 block">Cantidad</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent font-medium"
-                  style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
-                  value={quantity}
-                  onChange={e => setQuantity(e.target.value)}
-                />
+                {/* Autocomplete dropdown */}
+                <AnimatePresence>
+                  {showSuggestions && filteredServices.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                      transition={{ duration: 0.18 }}
+                      style={{
+                        position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                        background: '#ffffff', border: '1.5px solid #EEF2F7',
+                        borderRadius: '1.25rem', boxShadow: '0 16px 40px rgba(0,0,0,0.1)',
+                        zIndex: 200, overflow: 'hidden',
+                      }}
+                    >
+                      <div style={{ padding: '0.6rem 1rem 0.4rem', borderBottom: '1px solid #F1F5F9' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                          Catálogo de servicios
+                        </span>
+                      </div>
+                      {filteredServices.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => handleSelectService(s)}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '0.75rem 1rem', background: 'transparent',
+                            border: 'none', cursor: 'pointer', transition: 'background 0.15s', textAlign: 'left',
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1E293B' }}>{s.name}</span>
+                          <span style={{
+                            fontSize: '0.75rem', fontWeight: 900, color: '#059669',
+                            background: '#ECFDF5', padding: '0.2rem 0.6rem', borderRadius: '999px',
+                            border: '1px solid #A7F3D0',
+                          }}>
+                            ${s.price}
+                          </span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="w-full md:w-32">
-                <input 
-                  type="number" 
-                  placeholder="Precio Unitario" 
-                  className="w-full pb-2 border-b border-slate-300 text-sm focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent font-medium placeholder:text-slate-400"
-                  style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '15px' }}
+              {/* Quantity */}
+              <input
+                type="number"
+                placeholder="Cant."
+                min={1}
+                style={{ ...inputStyle, textAlign: 'center' }}
+                value={quantity}
+                onChange={e => setQuantity(e.target.value)}
+                {...inputFocusHandlers}
+              />
+
+              {/* Price */}
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#CBD5E1', fontWeight: 800, fontSize: '0.875rem', pointerEvents: 'none' }}>$</span>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  style={{ ...inputStyle, paddingLeft: '1.75rem' }}
                   value={unitPrice}
                   onChange={e => setUnitPrice(e.target.value)}
+                  {...inputFocusHandlers}
                 />
               </div>
 
-              <button 
-                type="button"
+              {/* Add button */}
+              <button
                 onClick={handleAddItem}
-                className="px-6 py-2.5 bg-[#0070AC] hover:bg-[#005c8f] text-white font-bold rounded-xl transition-all shadow-sm border-none cursor-pointer flex items-center justify-center gap-2 text-sm w-full md:w-auto h-[42px]"
-                style={{ backgroundColor: 'var(--primary, #0070AC)' }}
+                style={{
+                  width: '44px', height: '44px', borderRadius: '14px', flexShrink: 0,
+                  background: treatmentName && unitPrice ? '#2563EB' : '#EEF2F7',
+                  color: treatmentName && unitPrice ? '#ffffff' : '#CBD5E1',
+                  border: 'none', cursor: treatmentName && unitPrice ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.2s', boxShadow: treatmentName && unitPrice ? '0 4px 12px rgba(37,99,235,0.25)' : 'none',
+                }}
+                onMouseOver={e => { if (treatmentName && unitPrice) e.currentTarget.style.transform = 'scale(1.08)'; }}
+                onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                <Plus size={18} strokeWidth={3} />
-                Agregar
+                <Plus size={20} strokeWidth={3} />
               </button>
             </div>
           </div>
+
+          {/* Items list */}
+          {items.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '1.25rem' }}>
+                <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Procedimientos en el plan ({items.length})
+                </label>
+              </div>
+              <AnimatePresence>
+                {items.map((item, idx) => (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 8, scale: 0.96 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '0.875rem 1rem',
+                      background: '#F8FAFC', border: '1.5px solid #EEF2F7',
+                      borderRadius: '1.25rem', gap: '0.75rem',
+                    }}
+                  >
+                    {/* Index bubble */}
+                    <div style={{
+                      width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+                      background: 'rgba(37,99,235,0.1)', color: '#2563EB',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.7rem', fontWeight: 900,
+                    }}>
+                      {idx + 1}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </p>
+                      <p style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 600, marginTop: '0.1rem' }}>
+                        {item.quantity} × ${item.price.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <span style={{ fontSize: '0.9375rem', fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                      ${(item.quantity * item.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      style={{
+                        width: '30px', height: '30px', borderRadius: '10px', flexShrink: 0,
+                        background: 'transparent', border: '1.5px solid #EEF2F7',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#CBD5E1', cursor: 'pointer', transition: 'all 0.2s',
+                      }}
+                      onMouseOver={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#FECACA'; }}
+                      onMouseOut={e =>  { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#CBD5E1'; e.currentTarget.style.borderColor = '#EEF2F7'; }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
 
-        {/* Total and Submit */}
-        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-8">
-          <div className="flex justify-end pr-4">
-            <div className="w-48">
-              <label className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 block">Monto total</label>
-              <div className="w-full pb-2 border-b border-slate-300 text-slate-800 text-xl font-bold h-9 flex items-end">
-                {totalAmount > 0 ? `$${totalAmount.toFixed(2)}` : '0'}
-              </div>
+        {/* ══ RIGHT column ═════════════════════════════════ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'sticky', top: '1rem' }}>
+
+          {/* Summary card */}
+          <div style={{
+            background: '#ffffff',
+            border: '1px solid #EEF2F7',
+            borderRadius: '1.75rem',
+            padding: '1.5rem',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.04)',
+            display: 'flex', flexDirection: 'column', gap: '1.25rem',
+          }}>
+            <p style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Resumen del plan
+            </p>
+
+            {/* KPI row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {[
+                { label: 'Procedimientos', value: items.length, icon: <ListChecks size={16} />, color: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
+                { label: 'Subtotal', value: `$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, icon: <DollarSign size={16} />, color: '#059669', bg: 'rgba(16,185,129,0.08)' },
+              ].map(k => (
+                <div key={k.label} style={{
+                  padding: '1rem', borderRadius: '1.25rem',
+                  background: '#F8FAFC', border: '1.5px solid #EEF2F7',
+                  display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: k.bg, color: k.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {k.icon}
+                  </div>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>{k.value}</span>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Total */}
+            <div style={{
+              padding: '1.25rem', borderRadius: '1.25rem',
+              background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem',
+            }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                Total estimado
+              </span>
+              <span style={{ fontSize: '1.875rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+                ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                USD
+              </span>
             </div>
           </div>
 
-          <div className="flex justify-center mt-4">
-            <button 
-              type="button"
-              onClick={handleCreatePlan}
-              className="px-12 py-3 bg-primary text-white hover:opacity-90 font-bold rounded-full transition-all shadow-md border-none cursor-pointer text-[15px] tracking-wide flex items-center justify-center gap-2"
-            >
-              {!isEditing && <Plus size={18} strokeWidth={3} />}
-              {isEditing ? 'Guardar cambios' : 'Crear plan de tratamiento'}
-            </button>
-          </div>
-        </div>
+          {/* Save button */}
+          <button
+            onClick={handleCreatePlan}
+            disabled={!canSave}
+            style={{
+              width: '100%', padding: '0.9rem',
+              borderRadius: '1.25rem', border: 'none', cursor: canSave ? 'pointer' : 'not-allowed',
+              background: canSave ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' : '#F1F5F9',
+              color: canSave ? '#ffffff' : '#CBD5E1',
+              fontSize: '0.75rem', fontWeight: 900,
+              textTransform: 'uppercase', letterSpacing: '0.12em',
+              boxShadow: canSave ? '0 6px 18px rgba(37,99,235,0.3)' : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={e => { if (canSave) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 24px rgba(37,99,235,0.4)'; } }}
+            onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = canSave ? '0 6px 18px rgba(37,99,235,0.3)' : 'none'; }}
+          >
+            <CheckCircle2 size={16} strokeWidth={2.5} />
+            {isEditing ? 'Guardar cambios' : 'Crear plan'}
+          </button>
 
+          {!canSave && (
+            <p style={{ textAlign: 'center', fontSize: '0.7rem', color: '#CBD5E1', fontWeight: 600 }}>
+              Agrega al menos un procedimiento para continuar.
+            </p>
+          )}
+        </div>
       </div>
-    </div>
+    </motion.div>
+
+      <ConfirmModal
+        isOpen={!!pendingRemoveId}
+        onCancel={() => setPendingRemoveId(null)}
+        onConfirm={confirmRemoveItem}
+        title="¿Eliminar procedimiento?"
+        message="Se quitará este procedimiento del plan. Puedes volver a agregarlo si cambias de opinión."
+        confirmLabel="Sí, quitar"
+      />
+    </>
   );
 };
 

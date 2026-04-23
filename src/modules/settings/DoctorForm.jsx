@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  X, User, Stethoscope, ChevronDown, UserPlus, Check
+  X, User, Stethoscope, ChevronDown, UserPlus, Check, CheckCircle
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 

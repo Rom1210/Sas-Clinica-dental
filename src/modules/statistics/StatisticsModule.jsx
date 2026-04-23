@@ -273,14 +273,8 @@ const StatisticsModule = () => {
       className="flex flex-col gap-6 mb-8"
     >
       
-      {/* Dynamic Advanced Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100/50 pb-4">
-         <div>
-            <h3 className="text-xl font-black text-slate-800 tracking-tight">Visiometría Clínica</h3>
-            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Dashboard en vivo · Filtro temporal</p>
-         </div>
-
-         {/* Advanced Time Selector port from BIDashboard */}
+      {/* Advanced Time Selector port from BIDashboard */}
+      <div className="flex flex-wrap items-center justify-end gap-3 mb-6 bg-slate-100/30 p-4 rounded-3xl border border-slate-100">
          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Dropdown value={selectedYear} options={YEARS.map(y => ({ label: String(y), value: y }))} onChange={setSelectedYear} />
@@ -294,7 +288,7 @@ const StatisticsModule = () => {
             
             <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
-            <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner border border-slate-200/50">
+            <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200/50">
                {tabs.map(tab => (
                  <button
                     key={tab}
@@ -341,7 +335,7 @@ const StatisticsModule = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Transit BarChart */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm lg:col-span-7">
+        <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm lg:col-span-7 min-w-0 overflow-hidden">
           <div className="flex items-center justify-between mb-8">
             <div className="flex flex-col">
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Tránsito de Consulta</h3>
@@ -349,7 +343,7 @@ const StatisticsModule = () => {
             </div>
           </div>
 
-          <div className="w-full h-[280px]">
+          <div className="w-full h-[280px] min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barSize={24} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -432,7 +426,7 @@ const StatisticsModule = () => {
       </div>
 
       {/* Financial Chart Full Width Area */}
-      <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm col-span-12">
+      <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm col-span-12 min-w-0 overflow-hidden">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Rendimiento Económico Operativo</h3>
@@ -446,7 +440,7 @@ const StatisticsModule = () => {
           </div>
         </div>
 
-        <div className="w-full h-[280px]">
+        <div className="w-full h-[280px] min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={invoicesByTime} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <defs>

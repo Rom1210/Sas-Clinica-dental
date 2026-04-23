@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Plus, X, ArrowRight, ArrowLeft, User, Calendar, Trash2, AlertCircle
 } from 'lucide-react';
@@ -55,6 +55,20 @@ const NewAppointmentFlow = () => {
   const [selectedDoctor,   setSelectedDoctor]   = useState(null);
   const [isModalOpen,      setIsModalOpen]       = useState(false);
   const [errorToast,       setErrorToast]        = useState(null);
+
+  const location = useLocation();
+
+  /* Handle preloaded services from Treatment Plan */
+  useEffect(() => {
+    if (location.state?.preloadedServices && selectedServices.length === 0) {
+      console.log("Detectados servicios pre-cargados:", location.state.preloadedServices);
+      const preloaded = location.state.preloadedServices.map(s => ({
+        ...s,
+        uid: `sv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      setSelectedServices(preloaded);
+    }
+  }, [location.state, selectedServices.length]);
 
   const subtotal = useMemo(() => {
     return selectedServices.reduce((sum, sv) => sum + (parseFloat(sv.price) || 0), 0);

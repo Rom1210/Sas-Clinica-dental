@@ -146,16 +146,27 @@ const ServiceForm = () => {
 
   const handleClose = () => navigate('/settings');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.price) return;
-    const payload = { name: formData.name.trim(), price: parseFloat(formData.price), cat: 'General' };
-    if (isEditing) {
-      updateService({ ...payload, id: parseInt(id) });
-    } else {
-      addService(payload);
+    
+    // Remove 'cat' field as it doesn't exist in the DB schema (caused 400 error)
+    const payload = { 
+      name: formData.name.trim(), 
+      price: parseFloat(formData.price) 
+    };
+
+    try {
+      if (isEditing) {
+        await updateService({ ...payload, id: parseInt(id) });
+      } else {
+        await addService(payload);
+      }
+      navigate('/settings');
+    } catch (err) {
+      console.error('Error saving service:', err);
+      alert('Error al guardar el servicio. Por favor, intente de nuevo.');
     }
-    navigate('/settings');
   };
 
   return (

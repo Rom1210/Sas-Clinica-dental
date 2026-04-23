@@ -419,6 +419,7 @@ const BIDashboard = () => {
         <div style={{
           background: 'white', border: '1px solid #E2E8F0', borderRadius: '1rem',
           boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: '1.5rem 1.75rem',
+          minWidth: 0, overflow: 'hidden' // Fix for Recharts ResponsiveContainer
         }}>
           {/* Chart Header */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -426,8 +427,8 @@ const BIDashboard = () => {
               <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                 Distribución por Casos
               </h3>
-              <p style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 500, marginTop: '0.2rem' }}>
-                Resumen gráfico de actividad clínica
+              <p style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, marginTop: '0.2rem' }}>
+                Relación de ingresos contra tiempo
               </p>
             </div>
 
@@ -511,11 +512,11 @@ const BIDashboard = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Secondary Analytical Graph (Flujo de Citas) */}
+          {/* Secondary Analytical Graph (Flujo de Citas Operativo) */}
           <div style={{
             background: 'white', border: '1px solid #E2E8F0', borderRadius: '1rem',
             boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: '1.5rem',
-            minHeight: '340px'
+            minHeight: '340px', minWidth: 0, overflow: 'hidden'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <div>
@@ -534,7 +535,7 @@ const BIDashboard = () => {
               </div>
             </div>
 
-            <div style={{ width: '100%', height: 220 }}>
+            <div style={{ width: '100%', height: 220, minWidth: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={appointmentTimelineData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                   <defs>

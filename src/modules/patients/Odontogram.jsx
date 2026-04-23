@@ -1,30 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Tooth from './Tooth';
 import ToothContextMenu from './ToothContextMenu';
-import { Info, X } from 'lucide-react';
+import { Info, X, Save, CheckCircle2, Loader2 } from 'lucide-react';
 import './Odontogram.css';
+import { useData } from '../../context/DataContext';
 
-const Odontogram = () => {
+const Odontogram = ({ patientId }) => {
+  const { saveOdontogram, loadOdontogram } = useData();
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [activeSelection, setActiveSelection] = useState({ tooth: null, surface: null });
   const [odontogramData, setOdontogramData] = useState({});
-  const [selectionMode, setSelectionMode] = useState(null); // null | 'parcial'
+  const [selectionMode, setSelectionMode] = useState(null);
   const [parcialStart, setParcialStart] = useState(null);
   const [rowStates, setRowStates] = useState({
-    permUpper: null, 
+    permUpper: null,
     permLower: null,
     tempUpper: null,
     tempLower: null
   });
-  const [bridges, setBridges] = useState([]); // { start, end, type }
+  const [bridges, setBridges] = useState([]);
+  const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | saved
+  const saveTimer = useRef(null);
+  const isFirstLoad = useRef(true);
 
-  // Body scroll lock logic
+  // Load from Supabase on mount
   useEffect(() => {
-    if (menuAnchor) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
+    if (!patientId) return;
+    loadOdontogram(patientId).then(data => {
+      if (data) {
+        setOdontogramData(data.tooth_data || {});
+        setRowStates(data.row_states || { permUpper: null, permLower: null, tempUpper: null, tempLower: null });
+        setBridges(data.bridges || []);
+      }
+      isFirstLoad.current = false;
+    });
+  }, [patientId]);
+
+  // Auto-save with 1.5s debounce after any change
+  const triggerSave = useCallback((toothData, rs, br) => {
+    if (isFirstLoad.current) return;
+    setSaveStatus('saving');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      await saveOdontogram(patientId, { toothData, rowStates: rs, bridges: br, notes: '' });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 1500);
+  }, [patientId, saveOdontogram]);
+
+  // Body scroll lock
+  useEffect(() => {
+    document.body.style.overflow = menuAnchor ? 'hidden' : 'auto';
     return () => { document.body.style.overflow = 'auto'; };
   }, [menuAnchor]);
 
@@ -130,63 +156,72 @@ const Odontogram = () => {
 
     if (action === 'DELETE_BRIDGE') {
       const toothBridges = getBridgesForTooth(toothNumber);
-      setBridges(prev => prev.filter(b => !toothBridges.includes(b)));
+      const newBridges = bridges.filter(b => !toothBridges.includes(b));
+      setBridges(newBridges);
+      triggerSave(odontogramData, rowStates, newBridges);
       return;
     }
 
     if (action === 'RESET') {
       setOdontogramData(prev => {
-        const newData = { ...prev };
-        delete newData[toothNumber];
-        return newData;
-      });
+      const newData = { ...prev };
+      delete newData[toothNumber];
+      const next = newData;
 
       const rowKey = getRowKey(toothNumber);
       if (rowKey) {
-        setRowStates(prev => ({ ...prev, [rowKey]: null }));
-        const toothBridges = getBridgesForTooth(toothNumber);
-        setBridges(prev => prev.filter(b => !toothBridges.includes(b)));
+        const toothBridgesLocal = getBridgesForToothLocal(toothNumber, bridges);
+        const newBridges = bridges.filter(b => !toothBridgesLocal.includes(b));
+        setBridges(newBridges);
+        setRowStates(prev2 => {
+          const ns = { ...prev2, [rowKey]: null };
+          triggerSave(next, ns, newBridges);
+          return ns;
+        });
+      } else {
+        triggerSave(next, rowStates, bridges);
       }
-      return;
+      return next;
+    });
+    return;
     }
 
     setOdontogramData(prev => {
       const currentTooth = prev[toothNumber] || { surfaces: {}, wholeState: null };
-      
-      // Distinguish between surface actions and whole tooth actions
       const surfaceActions = ['RES_GOOD', 'RES_DEF', 'RES_PROV'];
-      
+      let next;
       if (surfaceActions.includes(action)) {
-        // Toggle surface action
         const isCurrentlyApplied = currentTooth.surfaces[surface] === action;
         const newSurfaces = { ...currentTooth.surfaces };
-        
-        if (isCurrentlyApplied) {
-          delete newSurfaces[surface];
-        } else {
-          newSurfaces[surface] = action;
-        }
-
-        return {
-          ...prev,
-          [toothNumber]: {
-            ...currentTooth,
-            surfaces: newSurfaces
-          }
-        };
+        if (isCurrentlyApplied) delete newSurfaces[surface];
+        else newSurfaces[surface] = action;
+        next = { ...prev, [toothNumber]: { ...currentTooth, surfaces: newSurfaces } };
       } else {
-        // Toggle whole tooth states
         const isCurrentlyApplied = currentTooth.wholeState === action;
-        return {
-          ...prev,
-          [toothNumber]: {
-            ...currentTooth,
-            wholeState: isCurrentlyApplied ? null : action
-          }
-        };
+        next = { ...prev, [toothNumber]: { ...currentTooth, wholeState: isCurrentlyApplied ? null : action } };
       }
+      triggerSave(next, rowStates, bridges);
+      return next;
     });
   };
+
+  const getBridgesForToothLocal = (num, bridgeList) => {
+    const rowKey = getRowKey(num);
+    if (!rowKey) return [];
+    const rowArr = {
+      permUpper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
+      permLower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38],
+      tempUpper: [55, 54, 53, 52, 51, 61, 62, 63, 64, 65],
+      tempLower: [85, 84, 83, 82, 81, 71, 72, 73, 74, 75]
+    }[rowKey];
+    return bridgeList.filter(b => {
+      if (getRowKey(b.start) !== rowKey) return false;
+      const si = rowArr.indexOf(b.start), ei = rowArr.indexOf(b.end), ti = rowArr.indexOf(num);
+      return ti >= Math.min(si, ei) && ti <= Math.max(si, ei);
+    });
+  };
+
+  const getBridgesForTooth = (num) => getBridgesForToothLocal(num, bridges);
 
   const getRowKey = (num) => {
     if (num >= 11 && num <= 28) return 'permUpper';
@@ -197,7 +232,9 @@ const Odontogram = () => {
   };
 
   const applyParcialProtesis = (start, end, type) => {
-    setBridges(prev => [...prev, { start, end, type }]);
+    const newBridges = [...bridges, { start, end, type }];
+    setBridges(newBridges);
+    triggerSave(odontogramData, rowStates, newBridges);
   };
 
   const renderRowLines = (rowKey) => {
@@ -254,27 +291,7 @@ const Odontogram = () => {
     );
   };
 
-  const getBridgesForTooth = (num) => {
-    const rowKey = getRowKey(num);
-    if (!rowKey) return [];
-    const rowArr = {
-      permUpper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
-      permLower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38],
-      tempUpper: [55, 54, 53, 52, 51, 61, 62, 63, 64, 65],
-      tempLower: [85, 84, 83, 82, 81, 71, 72, 73, 74, 75]
-    }[rowKey];
 
-    return bridges.filter(b => {
-      const bRowKey = getRowKey(b.start);
-      if (bRowKey !== rowKey) return false;
-      const startIdx = rowArr.indexOf(b.start);
-      const endIdx = rowArr.indexOf(b.end);
-      const toothIdx = rowArr.indexOf(num);
-      const minIdx = Math.min(startIdx, endIdx);
-      const maxIdx = Math.max(startIdx, endIdx);
-      return toothIdx >= minIdx && toothIdx <= maxIdx;
-    });
-  };
 
   // Tooth grouping definitions according to request
   const permanentUpper = {
@@ -331,9 +348,21 @@ const Odontogram = () => {
 
   return (
     <div className="odontogram-wrapper">
-      <div className="odontogram-header">
+      <div className="odontogram-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2 className="odontogram-title">Odontograma</h2>
-        <Info size={18} className="info-icon" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {saveStatus === 'saving' && (
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <CheckCircle2 size={12} /> Guardado
+            </span>
+          )}
+          <Info size={18} className="info-icon" />
+        </div>
       </div>
 
       <div className="flex flex-col gap-10 items-center w-full overflow-x-auto pb-4">

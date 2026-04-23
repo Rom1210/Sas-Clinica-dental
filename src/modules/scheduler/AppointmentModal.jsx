@@ -154,8 +154,14 @@ const AppointmentModal = ({ isOpen, onClose, selection, onSuccess, prefilledPati
         total_amount: totalCost, // NUEVA COLUMNA
       };
 
+      const selectedDoc = activeDoctors.find(d => d.id === selectedDoctorId);
+      const optMeta = {
+        patientName: selectedPatient?.full_name || selectedPatient?.name || newPatientName,
+        doctorName: selectedDoc?.full_name || selectedDoc?.name
+      };
+
       // No await here for zero-latency UI
-      addAppointment(appointmentData);
+      addAppointment(appointmentData, optMeta);
       onSuccess();
     } catch (error) {
       console.error('Error recording appointment:', error);

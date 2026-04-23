@@ -1,5 +1,12 @@
 import React from 'react';
 
+const Sparkline = ({ color }) => (
+  <svg width="64" height="24" viewBox="0 0 64 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 20 Q 12 18, 18 12 T 34 14 T 48 6 T 62 8" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.3" />
+    <path d="M2 20 Q 12 18, 18 12 T 34 14 T 48 6 T 62 8 L 62 24 L 2 24 Z" fill={color} opacity="0.05" />
+  </svg>
+);
+
 const FinanceKPIs = ({ statsKPI, formatPrice, setActiveDetail }) => {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
@@ -31,13 +38,18 @@ const FinanceKPIs = ({ statsKPI, formatPrice, setActiveDetail }) => {
             
             <div className="flex flex-col">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-              <p className="text-xl font-black tracking-tight text-slate-800">
-                {formatPrice(stat.value)}
-              </p>
+              <div className="flex items-end justify-between">
+                <p className="text-xl font-black tracking-tight text-slate-800">
+                  {formatPrice(stat.value)}
+                </p>
+                <div className="mb-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <Sparkline color={stat.color} />
+                </div>
+              </div>
             </div>
           </div>
           
-          {/* Subtle background pattern or hover effect can be added here */}
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full transition-transform duration-500 group-hover:scale-150" style={{ background: stat.bg, opacity: 0.4, zIndex: 0 }} />
         </div>
       ))}
     </div>

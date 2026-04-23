@@ -136,16 +136,10 @@ const FinanceHeader = ({
           {activeTab === 'expenses' && (
             <div className="flex gap-3 ml-2">
               <button 
-                onClick={() => setShowPaymentModal(true)} 
-                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all border-none cursor-pointer shadow-lg shadow-blue-200"
-              >
-                 <Plus size={14} /> Pago
-              </button>
-              <button 
                 onClick={() => setShowModal('expense')} 
                 className="flex items-center gap-2 px-6 py-2.5 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-700 transition-all border-none cursor-pointer shadow-lg shadow-rose-200"
               >
-                 <Plus size={14} /> Gasto
+                 <Plus size={14} /> Registrar Gasto
               </button>
             </div>
           )}

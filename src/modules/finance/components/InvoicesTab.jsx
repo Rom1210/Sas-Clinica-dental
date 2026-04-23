@@ -1,10 +1,10 @@
 import React from 'react';
 import { TrendingUp, Plus, Receipt, User as UserIcon } from 'lucide-react';
 
-const InvoicesTab = ({ filteredInvoices, totalFilteredIncome, formatPrice, setShowPaymentModal }) => {
+const InvoicesTab = ({ filteredInvoices, totalFilteredIncome, formatPrice, setShowPaymentModal, onEnterSelectionMode }) => {
   return (
     <div className="flex flex-col gap-6 animate-in slide-in-from-bottom-2 duration-300">
-      <div className="flex justify-between items-center bg-emerald-50 px-6 py-4 rounded-2xl border border-emerald-100/50">
+      <div className="flex justify-between items-center bg-emerald-50 px-8 py-6 rounded-full border border-emerald-100/50">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center">
             <TrendingUp className="text-emerald-600" size={18} />
@@ -15,8 +15,8 @@ const InvoicesTab = ({ filteredInvoices, totalFilteredIncome, formatPrice, setSh
           </div>
         </div>
         <button 
-          onClick={() => setShowPaymentModal(true)} 
-          className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all border-none cursor-pointer shadow-lg shadow-emerald-200"
+          onClick={onEnterSelectionMode} 
+          className="flex items-center gap-2 px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-slate-950 transition-all border-none cursor-pointer shadow-xl shadow-slate-200"
         >
            <Plus size={14} /> Registrar Pago
         </button>

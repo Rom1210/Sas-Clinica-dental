@@ -6,6 +6,7 @@ export const SettingsProvider = ({ children }) => {
   const [exchangeRate, setExchangeRate] = useState(45.50); // Default placeholder
   const [currency, setCurrency] = useState('USD'); // Default display currency
   const [clinicName, setClinicName] = useState('SmartDental'); // Default clinic name
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // In a real app, this would fetch from the database 'settings' table
   useEffect(() => {
@@ -14,6 +15,9 @@ export const SettingsProvider = ({ children }) => {
 
     const savedClinic = localStorage.getItem('clinicName');
     if (savedClinic) setClinicName(savedClinic);
+
+    const savedSidebar = localStorage.getItem('isSidebarCollapsed');
+    if (savedSidebar) setIsSidebarCollapsed(savedSidebar === 'true');
   }, []);
 
   const updateExchangeRate = (rate) => {
@@ -24,6 +28,14 @@ export const SettingsProvider = ({ children }) => {
   const updateClinicName = (name) => {
     setClinicName(name);
     localStorage.setItem('clinicName', name);
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const newState = !prev;
+      localStorage.setItem('isSidebarCollapsed', newState);
+      return newState;
+    });
   };
 
   const toggleCurrency = () => {
@@ -45,7 +57,9 @@ export const SettingsProvider = ({ children }) => {
       toggleCurrency,
       formatPrice,
       clinicName,
-      updateClinicName
+      updateClinicName,
+      isSidebarCollapsed,
+      toggleSidebar
     }}>
       {children}
     </SettingsContext.Provider>

@@ -23,7 +23,10 @@ import {
 const AppointmentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { appointments, consultations, patients, doctors, updateAppointment } = useData();
+  const { 
+    appointments, consultations, patients, doctors, updateAppointment,
+    treatmentPlans, updateTreatmentItemStatus 
+  } = useData();
 
   const [reasonModal, setReasonModal] = useState({ isOpen: false, type: null }); // type: 'rescheduled' | 'cancelled'
   const [reasonText, setReasonText] = useState('');
@@ -63,13 +66,13 @@ const AppointmentDetails = () => {
   const lastRecord = pastRecords[0];
   
   // Parse services if exists
-  let services = [];
+  let appointmentServices = [];
   let total = '$0';
   if (notes.startsWith('Servicios:')) {
     const parts = notes.split('|');
     const servicesPart = parts[0].replace('Servicios:', '').trim();
     total = parts[1]?.replace('Total:', '').trim() || '$0';
-    services = servicesPart.split(', ').filter(s => s).map(s => {
+    appointmentServices = servicesPart.split(', ').filter(s => s).map(s => {
       const [name, pricePart] = s.split(' ($');
       return { name, price: pricePart?.replace(')', '') || '0' };
     });
@@ -82,12 +85,30 @@ const AppointmentDetails = () => {
         status: newStatus,
         status_reason: reason 
       });
+
+      // SYNC WITH TREATMENT PLAN: If completed, mark items as completed
+      if (newStatus === 'completed' && appointmentServices.length > 0) {
+        const patientPlans = (treatmentPlans || []).filter(plan => plan.patient_id === patient?.id);
+        
+        for (const plan of patientPlans) {
+          for (const item of (plan.items || [])) {
+            const itemName = item.service?.name || item.name;
+            const matchesService = appointmentServices.some(s => s.name.toLowerCase() === itemName.toLowerCase());
+            
+            if (matchesService && item.status !== 'completed') {
+              console.log(`Marcando item de tratamiento como completado: ${itemName}`);
+              await updateTreatmentItemStatus(item.id, 'completed');
+            }
+          }
+        }
+      }
+
       setReasonModal({ isOpen: false, type: null });
       setReasonText('');
       
       if (newStatus === 'completed') {
         // Show success state and auto-close
-        setIsUpdating(true); // Keep it "loading" essentially
+        setIsUpdating(true); 
         setTimeout(() => {
           navigate('/scheduler');
         }, 1500);
@@ -198,14 +219,14 @@ const AppointmentDetails = () => {
                   <h2 className="text-xl font-black text-slate-800">Plan de Tratamiento</h2>
                </div>
                <span className="px-3 py-1 bg-sky-50 text-sky-600 rounded-lg text-[10px] font-black">
-                 {services.length} PROCEDIMIENTOS
+                 {appointmentServices.length} PROCEDIMIENTOS
                </span>
             </div>
 
-            {services.length > 0 ? (
+            {appointmentServices.length > 0 ? (
               <div className="flex flex-col gap-4">
                  <div className="flex flex-col gap-3">
-                    {services.map((s, i) => (
+                    {appointmentServices.map((s, i) => (
                       <div key={i} className="flex justify-between items-center p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-sky-200 transition-all">
                         <div className="flex items-center gap-3">
                            <div className="w-2 h-2 rounded-full bg-sky-400"></div>

@@ -19,6 +19,14 @@ const Tooth = ({ toothNumber, surfaces = {}, onSurfaceClick, wholeToothState }) 
 
   const isProvisional = (action) => action === 'RES_PROV';
 
+  const getSurfaceGlow = (action) => {
+    switch (action) {
+      case 'RES_GOOD': return 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.4))';
+      case 'CARIES': return 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.4))';
+      default: return 'none';
+    }
+  };
+
   return (
     <div className="tooth-container">
       <svg viewBox="0 -20 100 120" className="tooth-svg" style={{ overflow: 'visible' }}>
@@ -27,13 +35,20 @@ const Tooth = ({ toothNumber, surfaces = {}, onSurfaceClick, wholeToothState }) 
             <stop offset="50%" stopColor="#3b82f6" />
             <stop offset="50%" stopColor="#ef4444" />
           </linearGradient>
+          <linearGradient id="grad-tooth-base" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#f8fafc" />
+          </linearGradient>
         </defs>
 
         {/* Base Surface Polygons for interactive area and background fill */}
         <polygon 
           points="5,5 95,5 75,25 25,25" 
           className={`tooth-surface ${isProvisional(surfaces.top) ? 'provisional' : ''}`}
-          style={{ fill: getSurfaceFill(surfaces.top) }}
+          style={{ 
+            fill: getSurfaceFill(surfaces.top),
+            filter: getSurfaceGlow(surfaces.top)
+          }}
           onClick={(e) => handleSurfaceClick('top', e)}
         />
         <polygon 
@@ -57,7 +72,10 @@ const Tooth = ({ toothNumber, surfaces = {}, onSurfaceClick, wholeToothState }) 
         <rect 
           x="25" y="25" width="50" height="50" 
           className={`tooth-surface ${isProvisional(surfaces.center) ? 'provisional' : ''}`}
-          style={{ fill: wholeToothState === 'CARIES' ? '#ef4444' : getSurfaceFill(surfaces.center) }}
+          style={{ 
+            fill: wholeToothState === 'CARIES' ? '#ef4444' : getSurfaceFill(surfaces.center),
+            filter: getSurfaceGlow(wholeToothState === 'CARIES' ? 'CARIES' : surfaces.center)
+          }}
           onClick={(e) => handleSurfaceClick('center', e)}
         />
 

@@ -393,9 +393,11 @@ const Scheduler = () => {
     };
 
     try {
-      await addAppointment(newBlock);
+      // Optimistic update: trigger background save and update UI immediately
+      addAppointment(newBlock);
       setSelectedSlots([]);
       setSuccessToast(`✓ Horario Bloqueado — ${dateStr} ${timeBlocks[0]}`);
+      setTimeout(() => setSuccessToast(null), 4000);
     } catch (err) {
       console.error('Error blocking time:', err);
       alert('Error: ' + err.message);
@@ -451,7 +453,12 @@ const Scheduler = () => {
     };
 
     try {
-      await addAppointment(newAppointment);
+      // Optimistic update: don't await the DB for the UI transitions
+      addAppointment(newAppointment, {
+        patientName: prefilledPatient.full_name || prefilledPatient.name,
+        doctorName: preloadedDoctor?.name
+      });
+      
       setSelectedSlots([]);
       setSuccessToast(`✓ Cita guardada — ${prefilledPatient.full_name || prefilledPatient.name || 'Paciente'} · ${dateStr} ${timeBlocks[0]}`);
       setTimeout(() => setSuccessToast(null), 5000);
@@ -668,13 +675,15 @@ const Scheduler = () => {
         )}
 
         {/* Main Grid Card */}
-        <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-100 relative" style={{ borderRadius: '3rem', padding: '1rem', paddingBottom: '1rem' }}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30 z-30"></div>
 
-
-          {/* Grid Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: `100px repeat(${activeDays.length}, 1fr)` }} className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
-            <div className="p-4 flex items-center justify-center border-r border-slate-100/50">
+          {/* Inner Grid Container */}
+          <div style={{ borderRadius: '2rem', overflow: 'hidden', border: '1px solid #F1F5F9', background: '#fff' }}>
+            
+            {/* Grid Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: `100px repeat(${activeDays.length}, 1fr)` }} className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
+              <div className="p-4 flex items-center justify-center border-r border-slate-100/50">
               <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                 <Clock size={16} strokeWidth={2.5} />
               </div>
@@ -782,10 +791,12 @@ const Scheduler = () => {
                             borderTopWidth: isFirstSelected ? '1.5px' : '0',
                           }}
                         >
+                          {!prefilledPatient && (
+                            <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, background: `repeating-linear-gradient(-45deg, rgba(255,255,255,0.15), rgba(255,255,255,0.15) 6px, transparent 6px, transparent 12px)`, backgroundAttachment: 'fixed', borderRadius: 'inherit' }} />
+                          )}
                           {isFirstSelected && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex flex-col items-center justify-center pointer-events-none gap-0.5">
-                              {!prefilledPatient && <span className="text-[12px]">🚫</span>}
-                              <span className="text-[9px] font-black text-white bg-black/20 backdrop-blur-md px-2 py-0.5 rounded-full ring-1 ring-white/30 whitespace-nowrap shadow-sm tracking-tighter">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full flex flex-col items-center justify-center pointer-events-none gap-0.5">
+                              <span className="relative z-10 text-[9px] font-black text-white bg-black/20 backdrop-blur-md px-2 py-0.5 rounded-full ring-1 ring-white/30 whitespace-nowrap shadow-sm tracking-tighter">
                                 {block.duration} MIN
                               </span>
                             </div>
@@ -794,95 +805,108 @@ const Scheduler = () => {
                       )}
 
                       {apps.length > 0 && (
-                        <div className="absolute inset-0 z-20">
-                          {apps.map((app, index) => {
-                            const width = 100 / apps.length;
-                            const left = index * width;
+                                <div className="absolute inset-0 z-20">
+                                  {apps.map((app, index) => {
+                                    const width = 100 / apps.length;
+                                    const left = index * width;
 
-                            let docColor = '#3b82f6';
-                            let docLabel = '';
+                                    let docColor = '#3b82f6';
+                                    let docLabel = 'Doctor';
 
-                            const doc = doctors.find(d => d.id === getDocId(app));
-                            if (doc) {
-                              docColor = doc.color || '#3b82f6';
-                              docLabel = doc.name;
-                            }
+                                    const doc = doctors.find(d => d.id === getDocId(app));
+                                    if (doc) {
+                                      docColor = doc.color || '#3b82f6';
+                                      docLabel = doc.name;
+                                    }
 
-                            const isFirst = app.blocks[0] === time;
-                            const isLast = app.blocks[app.blocks.length - 1] === time;
-                            const isBlocked = app.status === 'blocked';
+                                    // Exhaustive name lookup
+                                    const patientObj = patients.find(p => p.id === app.patient_id);
+                                    const rawPatientName = app.patient?.full_name || 
+                                                           (patientObj ? (patientObj.full_name || (patientObj.first_name + ' ' + (patientObj.last_name || '')).trim()) : null) || 
+                                                           app.patientName;
+                                    const displayName = rawPatientName || (app.status === 'blocked' ? 'BLOQUEADO' : 'S/N');
 
-                            return (
-                              <div
-                                key={`${app.id}-${time}-${index}`}
-                                onClick={(e) => { e.stopPropagation(); navigate(`/scheduler/appointment/${app.id}`); }}
-                                className={`absolute inset-0 z-20 ${app.isOptimistic ? 'animate-pulse' : ''}`}
-                                style={{
-                                  position: 'absolute',
-                                  top: isFirst ? '2px' : '-1px', 
-                                  height: isFirst && isLast 
-                                    ? 'calc(100% - 4px)' 
-                                    : isFirst 
-                                      ? 'calc(100% - 2px + 1px)' 
-                                      : isLast 
-                                        ? 'calc(100% - 2px)' 
-                                        : 'calc(100% + 2px)',
-                                  width: `calc(${width}% - 2px)`,
-                                  left: `calc(${left}% + 1px)`,
-                                  backgroundColor: isBlocked ? `${docColor}99` : docColor, // 99 = 60% opacity
-                                  borderRadius: isFirst && isLast 
-                                    ? '10px' 
-                                    : isFirst 
-                                      ? '10px 10px 0 0' 
-                                      : isLast 
-                                        ? '0 0 10px 10px' 
-                                        : '0',
-                                  padding: '4px 8px',
-                                  color: '#fff',
-                                  cursor: 'pointer',
-                                  overflow: 'hidden',
-                                  zIndex: 10 + index,
-                                  boxShadow: isBlocked ? 'none' : 'inset 0 0 20px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.1)',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  border: isBlocked ? `2px dashed ${docColor}` : 
-                                          app.status === 'rescheduled' ? '3px solid #f59e0b' : 
-                                          app.status === 'cancelled' ? '3px solid #ef4444' : 
-                                          app.status === 'completed' ? '3px solid #10b981' : 
-                                          '1px solid rgba(255,255,255,0.1)',
-                                  filter: isBlocked ? 'saturate(0.5)' : (app.status === 'cancelled' ? 'grayscale(0.8)' : 'none'),
-                                  opacity: (app.status === 'cancelled' || app.isOptimistic) ? 0.6 : 1
-                                }}
-                                onMouseOver={e => e.currentTarget.style.filter = 'brightness(1.1)'}
-                                onMouseOut={e => e.currentTarget.style.filter = 'none'}
-                                title={isBlocked ? `Bloqueado - ${docLabel}` : `${app.patientName} - ${docLabel}`}
-                              >
-                                {isBlocked && isFirst && (
-                                  <span className="text-lg animate-pulse">⚽</span>
-                                )}
-                                {!isBlocked && isFirst && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                    {app.status === 'completed' && (
-                                      <CheckCircle size={10} strokeWidth={3} style={{ opacity: 0.9 }} />
-                                    )}
-                                    {app.status === 'rescheduled' && (
-                                      <RefreshCw size={10} strokeWidth={3} style={{ opacity: 0.9 }} />
-                                    )}
-                                    {app.status === 'cancelled' && (
-                                      <Ban size={10} strokeWidth={3} style={{ opacity: 0.9 }} />
-                                    )}
-                                    <span className="text-[8px] font-black uppercase opacity-60 mt-1">
-                                      {app.patientName.split(' ')[0]}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                                    const isFirst = app.blocks[0] === time;
+                                    const isLast = app.blocks[app.blocks.length - 1] === time;
+                                    const isBlocked = app.status === 'blocked';
+
+                                    return (
+                                      <div
+                                        key={`${app.id}-${time}-${index}`}
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/scheduler/appointment/${app.id}`); }}
+                                        className={`absolute inset-0 z-20 ${app.isOptimistic ? 'animate-pulse' : ''}`}
+                                        style={{
+                                          position: 'absolute',
+                                          top: isFirst ? '2px' : '-1px', 
+                                          height: isFirst && isLast 
+                                            ? 'calc(100% - 4px)' 
+                                            : isFirst 
+                                              ? 'calc(100% - 2px + 1px)' 
+                                              : isLast 
+                                                ? 'calc(100% - 2px)' 
+                                                : 'calc(100% + 2px)',
+                                          width: `calc(${width}% - 2px)`,
+                                          left: `calc(${left}% + 1px)`,
+                                          backgroundColor: isBlocked ? `${docColor}CC` : docColor, 
+                                          borderRadius: isFirst && isLast 
+                                            ? '12px' 
+                                            : isFirst 
+                                              ? '12px 12px 0 0' 
+                                              : isLast 
+                                                ? '0 0 12px 12px' 
+                                                : '0',
+                                          padding: '4px 6px',
+                                          color: '#fff',
+                                          cursor: 'pointer',
+                                          overflow: 'hidden',
+                                          zIndex: 10 + index,
+                                          boxShadow: isBlocked ? 'none' : 'inset 0 0 20px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.15)',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                          border: isBlocked ? `2px dashed rgba(255,255,255,0.4)` : 
+                                                  app.status === 'rescheduled' ? '2px solid #f59e0b' : 
+                                                  app.status === 'cancelled' ? '2px solid #ef4444' : 
+                                                  app.status === 'completed' ? '2px solid #10b981' : 
+                                                  '1px solid rgba(255,255,255,0.2)',
+                                          filter: isBlocked ? 'saturate(0.5)' : (app.status === 'cancelled' ? 'grayscale(0.8)' : 'none'),
+                                          opacity: (app.status === 'cancelled' || app.isOptimistic) ? 0.6 : 1
+                                        }}
+                                        onMouseOver={e => e.currentTarget.style.filter = 'brightness(1.1)'}
+                                        onMouseOut={e => e.currentTarget.style.filter = 'none'}
+                                        title={isBlocked ? `Bloqueado - ${docLabel}` : `${displayName} - ${docLabel}`}
+                                      >
+                                        {isBlocked && (
+                                          <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, background: `repeating-linear-gradient(-45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1) 6px, transparent 6px, transparent 12px)`, backgroundAttachment: 'fixed', borderRadius: 'inherit' }} />
+                                        )}
+                                        {isFirst && (
+                                          <div className="flex flex-col items-center justify-center w-full h-full px-1 overflow-hidden pointer-events-none z-10">
+                                            {/* Centered Patient Name - Primary Identifier */}
+                                            <div className="flex flex-col items-center justify-center w-full gap-0.5">
+                                              <span className="text-[11px] font-[1000] uppercase tracking-tighter text-white leading-tight text-center drop-shadow-lg scale-105 max-w-full overflow-hidden" style={{ display: 'block', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'center' }}>
+                                                {displayName}
+                                              </span>
+                                              
+                                              {/* Optional Status Indicators */}
+                                              {!isBlocked && app.status !== 'scheduled' && (
+                                                <div className="flex gap-1 mt-1 opacity-70">
+                                                  {app.status === 'completed' && <CheckCircle size={8} strokeWidth={3} />}
+                                                  {app.status === 'rescheduled' && <RefreshCw size={8} strokeWidth={3} />}
+                                                  {app.status === 'cancelled' && <Ban size={8} strokeWidth={3} />}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                      </div>
+
+                                    );
+                                  })}
+                                </div>
+
                       )}
                     </div>
                   );
@@ -892,6 +916,7 @@ const Scheduler = () => {
             </motion.div>
           </div>
         </div>
+      </div>
 
         <AppointmentModal
           isOpen={isModalOpen}
@@ -902,54 +927,96 @@ const Scheduler = () => {
         />
       </div>
 
-
-      {/* Selection Floating Bar — Redesigned ‘Premium Dock’ */}
+      {/* Selection Floating Bar — Minimal Premium Dock */}
       {(selectionSummary && selectedSlots.length > 0) && createPortal(
-        <div 
-          className="fixed border-none shadow-[0_32px_80px_rgba(0,0,0,0.3)] rounded-full flex items-center animate-slide-up-dock z-[9999]"
+        <div
+          className="fixed animate-slide-up-dock"
           style={{
-            bottom: '48px',
+            bottom: '32px',
             left: '50%',
-            transform: 'translateX(-50%)', 
+            transform: 'translateX(-50%)',
             zIndex: 9999,
-            backgroundColor: prefilledPatient 
-              ? (doctors.find(d => d.id === selectedDoctorId)?.color || preloadedDoctor?.color || '#3b82f6')
-              : '#EF4444',
-            minWidth: '550px',
-            padding: '10px 40px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(15,23,42,0.92)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '999px',
+            padding: '6px 8px',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.08)',
           }}
         >
-          {/* Column 1: Info (Left) */}
-          <div className="flex-1 flex flex-col items-start justify-center">
-            <span className="text-[12px] font-black leading-none tracking-tight text-white mb-1">
-              {selectedSlots.length} Bloque{selectedSlots.length > 1 ? 's' : ''}
+          {/* Info pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px' }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: prefilledPatient
+                ? (doctors.find(d => d.id === selectedDoctorId)?.color || preloadedDoctor?.color || '#3b82f6')
+                : (selectedDoctorId ? doctors.find(d => d.id === selectedDoctorId)?.color || '#ef4444' : '#ef4444')
+            }} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' }}>
+              {selectedSlots.length} bloque{selectedSlots.length > 1 ? 's' : ''} · {selectionSummary.duration} min
             </span>
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90 whitespace-nowrap" style={{ color: '#ffffff' }}>Selección</span>
           </div>
 
-          {/* Column 2: Close (Exact Center) */}
-          <div className="flex justify-center flex-shrink-0">
-            <button 
-              onClick={() => setSelectedSlots([])} 
-              className="w-11 h-11 flex items-center justify-center rounded-full transition-all cursor-pointer hover:bg-white/10 active:scale-90 border-none text-white p-0"
-              style={{ backgroundColor: 'transparent', border: 'none' }}
-              title="Cancelar"
-            >
-              <X size={26} strokeWidth={4} className="hover:rotate-90 transition-transform duration-300" />
-            </button>
-          </div>
+          {/* Divider */}
+          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
 
-          {/* Column 3: Action (Right) */}
-          <div className="flex-1 flex justify-end">
-            <button 
-              onClick={prefilledPatient ? handleScheduleAppointment : handleBlockTime} 
-              className="px-6 py-3 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-full transition-all hover:bg-white/10 flex items-center gap-3 active:scale-95 border-none cursor-pointer"
-              style={{ backgroundColor: 'transparent', border: 'none' }}
+          {/* Cancel selection */}
+          <button
+            onClick={() => setSelectedSlots([])}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: '50%', border: 'none',
+              background: 'rgba(255,255,255,0.08)', cursor: 'pointer', color: 'rgba(255,255,255,0.7)',
+              transition: 'all 0.2s', flexShrink: 0
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            title="Cancelar selección"
+          >
+            <X size={14} strokeWidth={3} />
+          </button>
+
+          {/* Action button */}
+          {prefilledPatient ? (
+            <button
+              onClick={handleScheduleAppointment}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 20px', borderRadius: '999px', border: 'none',
+                background: doctors.find(d => d.id === selectedDoctorId)?.color || preloadedDoctor?.color || '#2563EB',
+                color: '#fff', fontSize: '0.7rem', fontWeight: 800,
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s'
+              }}
             >
-              {prefilledPatient ? 'Agendar Cita' : 'Bloquear Horario'} 
-              <ChevronRight size={18} strokeWidth={4} />
+              Agendar Cita <ChevronRight size={14} strokeWidth={3} />
             </button>
-          </div>
+          ) : (
+            <button
+              onClick={selectedDoctorId ? handleBlockTime : undefined}
+              disabled={!selectedDoctorId}
+              title={!selectedDoctorId ? 'Selecciona un doctor primero' : 'Bloquear horario'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 20px', borderRadius: '999px', border: 'none',
+                background: selectedDoctorId
+                  ? (doctors.find(d => d.id === selectedDoctorId)?.color || '#ef4444')
+                  : 'rgba(255,255,255,0.1)',
+                color: selectedDoctorId ? '#fff' : 'rgba(255,255,255,0.3)',
+                fontSize: '0.7rem', fontWeight: 800,
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                cursor: selectedDoctorId ? 'pointer' : 'not-allowed',
+                whiteSpace: 'nowrap', transition: 'all 0.2s'
+              }}
+            >
+              {selectedDoctorId ? 'Bloquear Horario' : 'Selecciona un doctor'}
+              {selectedDoctorId && <ChevronRight size={14} strokeWidth={3} />}
+            </button>
+          )}
         </div>,
         document.body
       )}

@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 .env
 tmp/
+scratch/
+test_insert_*.cjs

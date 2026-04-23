@@ -1,9 +1,33 @@
 import React from 'react';
 import { History, Search, User as UserIcon, CheckCircle, AlertCircle, ChevronRight, Users, MessageCircle } from 'lucide-react';
+import { useSettings } from '../../../context/SettingsContext';
 
-const AccountsTab = ({ patientFinancials, searchTerm, setSearchTerm, navigate, formatPrice }) => {
+const AccountsTab = ({ patientFinancials, searchTerm, setSearchTerm, navigate, formatPrice, selectMode, onCancelSelection }) => {
+  const { clinicName } = useSettings();
+
   return (
-    <div className="professional-card p-0 overflow-hidden border-none shadow-sm bg-white animate-in fade-in duration-500">
+    <div className="flex flex-col gap-4 animate-in fade-in duration-500">
+      {selectMode && (
+        <div className="bg-primary/10 border-2 border-primary/20 rounded-3xl p-6 flex items-center justify-between shadow-lg shadow-primary/5 animate-in slide-in-from-top-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <Users size={24} strokeWidth={3} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-primary uppercase tracking-tight leading-none mb-1">Elija un paciente</h2>
+              <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest">Selecciona de la lista para registrar su pago</p>
+            </div>
+          </div>
+          <button 
+            onClick={onCancelSelection}
+            className="px-6 py-2.5 bg-white text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      <div className="professional-card p-0 overflow-hidden border-none shadow-sm bg-white">
        <div style={{ padding: '32px 40px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', flexWrap: 'wrap', gap: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -87,7 +111,7 @@ const AccountsTab = ({ patientFinancials, searchTerm, setSearchTerm, navigate, f
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const msg = `Hola ${pf.name}, te saludamos de la Clínica Sas. Te escribimos para recordarte amablemente que tienes un saldo pendiente de ${formatPrice(pf.balance)}. ¡Feliz día!`;
+                                const msg = `Hola ${pf.name}, te saludamos de la ${clinicName}. Te escribimos para recordarte amablemente que tienes un saldo pendiente de ${formatPrice(pf.balance)}. ¡Feliz día!`;
                                 window.open(`https://wa.me/${pf.phone || ''}?text=${encodeURIComponent(msg)}`, '_blank');
                               }}
                               title="Notificar Cobro"
@@ -106,6 +130,7 @@ const AccountsTab = ({ patientFinancials, searchTerm, setSearchTerm, navigate, f
              </tbody>
           </table>
        </div>
+      </div>
     </div>
   );
 };

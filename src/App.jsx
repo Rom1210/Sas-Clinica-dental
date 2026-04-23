@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation, Link, Navigate, useSearchParams } from 'react-router-dom';
 import { 
   Users, 
-  Calendar, 
+  Calendar,
   CreditCard, 
   BarChart3, 
   Settings, 
@@ -10,14 +10,18 @@ import {
   LogOut,
   Loader2,
   ChevronRight,
+  ChevronLeft,
   TrendingDown,
-  FileText
+  FileText,
+  Crown,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
-import { SettingsProvider } from './context/SettingsContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
 
 // Components
 import Login from './components/auth/Login';
@@ -43,15 +47,24 @@ import StatisticsModule from './modules/statistics/StatisticsModule';
 import ControlMaster from './modules/master/ControlMaster';
 import ServiceForm from './modules/settings/ServiceForm';
 import DoctorForm from './modules/settings/DoctorForm';
+import SubscriptionsModule from './modules/subscription/SubscriptionsModule';
+import AIAssistant from './components/ai/AIAssistant';
+import PricingPage from './modules/subscription/PricingPage';
+import { SubscriptionProvider, usePlan } from './context/SubscriptionContext';
 
 const AppContent = () => {
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const { loading: dataLoading, error: dataError } = useData();
+  const { isTrialActive, trialDaysLeft, pendingCount } = usePlan();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
+  const { isSidebarCollapsed, toggleSidebar } = useSettings();
   const [toast, setToast] = useState(null);
+
+  // AI Assistant is shown for authenticated users only
+  const isAuthenticated = !!user;
 
   if (authLoading) {
     return (
@@ -79,6 +92,7 @@ const AppContent = () => {
     { id: 'finance', path: '/finance', label: 'Finanzas (USD/VES)', icon: <CreditCard size={20} /> },
     { id: 'statistics', path: '/statistics', label: 'Estadísticas', icon: <BarChart3 size={20} /> },
     { id: 'settings', path: '/settings', label: 'Control Maestro', icon: <Settings size={20} /> },
+    { id: 'subscriptions', path: '/subscriptions', label: 'Planes y Pagos', icon: <Crown size={20} /> },
   ];
 
   const showSuccessToast = (message) => {
@@ -93,87 +107,111 @@ const AppContent = () => {
   return (
     <div className="flex" style={{ minHeight: '100vh', background: 'var(--background)' }}>
       {/* Fixed Professional Sidebar */}
-      <aside className="sidebar-fixed flex flex-col p-6">
-        <div className="flex items-center gap-3 mb-10 px-2 cursor-pointer" onClick={() => navigate('/')}>
+      <aside className={`sidebar-fixed flex flex-col p-6 ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+
+        <div className={`flex items-center mb-8 px-2 cursor-pointer ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`} onClick={() => navigate('/')}>
           <div style={{ 
             width: 32, height: 32, background: 'var(--primary)', 
             borderRadius: '8px', display: 'flex', 
+            minWidth: 32,
             alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 900
           }}>S</div>
-          <h1 style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.04em', color: '#111827' }}>SmartDental</h1>
+          {!isSidebarCollapsed && (
+            <h1 style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.04em', color: '#111827' }} className="animate-in fade-in duration-300">SmartDental</h1>
+          )}
         </div>
 
-        <nav className="flex-1 flex flex-col gap-1">
+        <nav className="flex-1 flex flex-col gap-1.5">
           {menuItems.map(item => {
             const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
             return (
               <Link
                 key={item.id}
                 to={item.path}
-                className={`flex items-center gap-3 py-2.5 px-4 w-full border-none transition-all no-underline ${isActive ? 'sidebar-item-active' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                style={{ 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: 500
-                }}
+                className={`sidebar-item ${isActive ? 'sidebar-item-active' : ''}`}
+                title={isSidebarCollapsed ? item.label : ""}
               >
                 {React.cloneElement(item.icon, { size: 18, strokeWidth: isActive ? 2.5 : 2 })}
-                {item.label}
+                {!isSidebarCollapsed && (
+                  <span className="animate-in fade-in duration-300">{item.label}</span>
+                )}
               </Link>
             );
           })}
+
+          {/* Collapse arrow at bottom of nav — exactly like reference design */}
+          <button
+            onClick={toggleSidebar}
+            className="sidebar-collapse-arrow"
+            title={isSidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={16} strokeWidth={2} /> : <ChevronLeft size={16} strokeWidth={2} />}
+          </button>
         </nav>
+
+        {/* Trial banner */}
+        {isTrialActive && trialDaysLeft <= 7 && !isSidebarCollapsed && (
+          <div style={{ margin: '0 0 0.75rem', background: 'linear-gradient(135deg, #FFF7ED, #FEF3C7)', border: '1px solid #FDE68A', borderRadius: '1rem', padding: '0.75rem', cursor: 'pointer' }}
+            onClick={() => window.location.href = '/precios'}
+            className="animate-in fade-in duration-300">
+            <p style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400E', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>⏳ Trial expira en {trialDaysLeft}d</p>
+            <p style={{ fontSize: '0.72rem', color: '#B45309', fontWeight: 600, margin: 0 }}>Elige un plan para continuar →</p>
+          </div>
+        )}
 
         <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
           <div 
-            className="flex items-center gap-3 p-2 hover:bg-slate-50 transition-all rounded-lg group" 
+            className={`flex items-center p-2 hover:bg-slate-50 transition-all rounded-lg group ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`} 
             style={{ cursor: 'pointer' }}
             onClick={() => setIsUserPanelOpen(true)}
           >
-            <div className="avatar group-hover:scale-105 transition-transform" style={{ width: 36, height: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
-              {profile?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
+            <div className="avatar group-hover:scale-105 transition-transform" style={{ width: 36, height: 36, minWidth: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
+              {profile?.full_name ? profile.full_name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() : (profile?.email ? profile.email[0].toUpperCase() : 'U')}
             </div>
-            <div className="flex flex-col flex-1 overflow-hidden">
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827' }} className="truncate">
-                {profile?.full_name || user.email}
-              </span>
-              <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Admin</span>
-            </div>
-            <div className="p-2 text-slate-300 group-hover:text-slate-500 transition-colors">
-              <ChevronRight size={14} />
-            </div>
+            {!isSidebarCollapsed && (
+              <div className="flex flex-col flex-1 overflow-hidden animate-in fade-in duration-300">
+                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827' }} className="truncate">
+                  {profile?.full_name || user.email}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Admin</span>
+              </div>
+            )}
+            {!isSidebarCollapsed && (
+              <div className="p-2 text-slate-300 group-hover:text-slate-500 transition-colors animate-in fade-in duration-300">
+                <ChevronRight size={14} />
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Structured Main Content */}
-      <main className="main-content-structured">
-        <header className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-6">
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#111827' }}>
-                {currentModule.label}
-              </h2>
-              <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
-                {dataLoading ? 'Actualizando datos...' : 'Gestión integral del centro odontológico'}
-              </p>
-            </div>
-
-            {location.pathname === '/finance' && (
-              <ModuleSubNav />
-            )}
-          </div>
-          
-          <div className="flex items-center gap-4">
+      <main className={`main-content-structured ${isSidebarCollapsed ? 'main-content-collapsed' : ''}`}>
+        <header className="flex justify-end items-center mb-10 translate-y-2">
+          <div className="flex items-center gap-4 pt-2">
             <button
               onClick={() => setShowPatientModal(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.65rem 1.5rem', borderRadius: '9999px', background: '#2563EB', color: '#fff', fontWeight: 900, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.35)', transition: 'all 0.2s' }}
-              onMouseOver={e => e.currentTarget.style.boxShadow='0 6px 20px rgba(37,99,235,0.5)'}
-              onMouseOut={e => e.currentTarget.style.boxShadow='0 4px 14px rgba(37,99,235,0.35)'}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '10px', 
+                padding: '0.8rem 2rem', borderRadius: '4rem', 
+                background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', 
+                color: '#fff', fontWeight: 900, fontSize: '12px', 
+                textTransform: 'uppercase', letterSpacing: '0.1em', 
+                border: 'none', cursor: 'pointer', 
+                boxShadow: '0 8px 20px rgba(37,99,235,0.3)', 
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+              }}
+              onMouseOver={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 12px 24px rgba(37,99,235,0.4)';
+              }}
+              onMouseOut={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(37,99,235,0.3)';
+              }}
             >
-              <Plus size={16} /> NUEVO PACIENTE
+              <Plus size={18} strokeWidth={3} /> NUEVO PACIENTE
             </button>
           </div>
         </header>
@@ -200,6 +238,8 @@ const AppContent = () => {
               <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
               <Route path="/statistics" element={<StatisticsModule />} />
               <Route path="/settings" element={<ControlMaster />} />
+              <Route path="/subscriptions" element={<SubscriptionsModule />} />
+              <Route path="/precios" element={<PricingPage />} />
               <Route path="/settings/new-service" element={<ServiceForm />} />
               <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
               <Route path="/settings/new-doctor" element={<DoctorForm />} />
@@ -215,18 +255,21 @@ const AppContent = () => {
       {/* Patient Registration Modal */}
       {showPatientModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(15,23,42,0.5)', display: 'flex', justifyContent: 'flex-end', zIndex: 9000,
-          backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0,
+          background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000,
+          backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+          padding: '2rem'
         }} onClick={() => setShowPatientModal(false)}>
           <div 
             style={{
-              width: '520px', height: '100%', background: 'white',
-              boxShadow: '-20px 0 60px rgba(0,0,0,0.15)',
+              width: '100%', maxWidth: '560px', height: 'fit-content', maxHeight: '90vh',
+              background: 'white', borderRadius: '32px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               display: 'flex', flexDirection: 'column',
+              overflow: 'hidden'
             }}
             onClick={(e) => e.stopPropagation()}
-            className="animate-in slide-in-from-right duration-300"
+            className="animate-in zoom-in-95 duration-300"
           >
             <PatientRegistration 
               onClose={() => setShowPatientModal(false)}
@@ -263,6 +306,9 @@ const AppContent = () => {
           </div>
         </div>
       )}
+
+      {/* AI Assistant — global floating bubble */}
+      {isAuthenticated && <AIAssistant />}
     </div>
   );
 };
@@ -318,7 +364,9 @@ const App = () => (
   <SettingsProvider>
     <AuthProvider>
       <DataProvider>
-        <AppContent />
+        <SubscriptionProvider>
+          <AppContent />
+        </SubscriptionProvider>
       </DataProvider>
     </AuthProvider>
   </SettingsProvider>

@@ -57,7 +57,7 @@ const AccountPanel = ({ isOpen, onClose, profile, onLogout }) => {
 
    if (!isOpen) return null;
 
-   const initials = profile?.full_name?.split(' ').map(n => n[0]).join('') || 'AK';
+   const initials = profile?.full_name ? profile.full_name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() : (profile?.email ? profile.email[0].toUpperCase() : 'AK');
    const displayName = profile?.full_name || 'Admin Khoury';
    const displayEmail = (profile?.email || 'khouryromero@gmail.com').toLowerCase();
 

@@ -14,7 +14,6 @@ import ClinicalHistoryTab from './components/PatientProfile/tabs/ClinicalHistory
 import FinanceTab from './components/PatientProfile/tabs/FinanceTab';
 import GalleryTab from './components/PatientProfile/tabs/GalleryTab';
 import TreatmentsTab from './components/PatientProfile/tabs/TreatmentsTab';
-import RegisterPaymentModal from '../../components/finance/RegisterPaymentModal';
 
 const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
   const navigate = useNavigate();
@@ -179,12 +178,15 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
       .filter(a => a.patient_id === patient.id && new Date(a.starts_at || a.start_at) < new Date())
       .map(a => {
         const docObj = doctors.find(d => d.id === a.doctor_id);
+        const titleRaw = a.notes?.split('|')[0].replace('Servicios:', '').trim() || 'Cita Programada';
+        // Remove ' ($45)' from title if it exists, since we show it in the amount
+        const cleanTitle = titleRaw.replace(/\(\$\d+(?:,\d+)*(?:\.\d+)?\)/, '').trim();
         return {
           id: `a-${a.id}`, date: a.starts_at || a.start_at, type: 'Cita Pasada',
-          title: a.notes?.split('|')[0].replace('Servicios:', '').trim() || 'Cita Programada',
+          title: cleanTitle,
           doctor: a.doctorName || 'Profesional',
           doctorColor: docObj?.color || '#94a3b8',
-          notes: '', amount: 0, icon: <Calendar />, originalId: a.id
+          notes: '', amount: getAppointmentCost(a.notes), icon: <Calendar />, originalId: a.id
         };
       });
 
@@ -239,32 +241,35 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
         onSchedule={handleScheduleAppointment} 
       />
 
-      {/* Tabs Navigation */}
-      <div className="flex justify-center border-b border-slate-200 mt-2">
-        <div className="flex gap-8">
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-4 px-2 text-sm font-bold transition-all cursor-pointer bg-transparent border-none outline-none relative flex items-center gap-2 ${
-                activeTab === tab ? 'text-[#0070AC]' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {tab}
-              {(tab === 'Galería' || tab === 'Planes') && (
-                <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                  Pronto
+      {/* Tabs Navigation (Antigravity Pill Style) */}
+      <div className="flex justify-center mt-2 px-4">
+        <div className="relative flex bg-slate-100/80 p-1.5 rounded-full border border-slate-200/50 backdrop-blur-md shadow-sm w-fit max-w-full overflow-x-auto scrollbar-hide">
+          {tabs.map(tab => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`
+                  relative z-10 flex items-center justify-center px-6 py-2.5 rounded-full border-none cursor-pointer transition-all duration-300 whitespace-nowrap
+                  ${isActive ? 'text-primary' : 'text-slate-500 hover:text-slate-800'}
+                `}
+                style={{ background: 'transparent' }}
+              >
+                {isActive && (
+                  <motion.div 
+                    layoutId="activeTabPill"
+                    className="absolute inset-0 bg-white shadow-sm rounded-full"
+                    style={{ zIndex: -1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                  {tab}
                 </span>
-              )}
-              {activeTab === tab && (
-                <motion.div 
-                  layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0070AC]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -281,15 +286,15 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
             {activeTab === 'General' && (
               <GeneralTab 
                 patient={patient} 
-                consultations={allConsultations.filter(c => c.patient_id === patient.id).map(c => ({
-                  ...c,
-                  date: new Date(c.created_at).toLocaleDateString('es-ES'),
-                  treatment: c.treatment_summary,
-                  cost: c.amount,
-                  paymentStatus: c.payment_status === 'paid' ? 'Pagado' : (c.payment_status === 'partial' ? 'Abono' : 'Pendiente'),
-                  doctorName: c.doctor?.full_name || 'Especialista'
+                consultations={historicalItems.map(item => ({
+                  ...item,
+                  treatment: item.title,
+                  cost: item.amount,
+                  date: new Date(item.date).toLocaleDateString('es-ES')
                 }))}
+                nextAppointment={insightsData.nextApp}
                 onSchedule={handleScheduleAppointment} 
+                onViewHistory={() => setActiveTab('Historia médica')}
               />
             )}
 
@@ -322,21 +327,12 @@ const PatientProfile = ({ patient: propPatient, onBack: propOnBack }) => {
               <FinanceTab 
                 debtSummary={debtSummary}
                 financialHistory={financialHistory}
-                onRegisterPayment={() => setShowPaymentModal(true)}
+                onRegisterPayment={() => navigate(`/paciente/${patient.id}/estado-cuenta`)}
               />
             )}
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* Payment Modal (Portal) */}
-      {showPaymentModal && (
-        <RegisterPaymentModal 
-          onClose={() => setShowPaymentModal(false)}
-          patientId={patient.id}
-          onSuccess={() => refresh()}
-        />
-      )}
     </motion.div>
   );
 };
