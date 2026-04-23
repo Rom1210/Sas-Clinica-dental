@@ -60,7 +60,7 @@ const AppContent = () => {
   const location = useLocation();
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
-  const { isSidebarCollapsed, toggleSidebar } = useSettings();
+  const { isSidebarCollapsed, toggleSidebar, clinicName } = useSettings();
   const [toast, setToast] = useState(null);
 
   // AI Assistant is shown for authenticated users only
@@ -116,9 +116,11 @@ const AppContent = () => {
             minWidth: 32,
             alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 900
-          }}>S</div>
+          }}>{clinicName?.[0] || 'S'}</div>
           {!isSidebarCollapsed && (
-            <h1 style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.04em', color: '#111827' }} className="animate-in fade-in duration-300">SmartDental</h1>
+            <h1 style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.04em', color: '#111827' }} className="animate-in fade-in duration-300">
+              {clinicName || 'SmartDental'}
+            </h1>
           )}
         </div>
 

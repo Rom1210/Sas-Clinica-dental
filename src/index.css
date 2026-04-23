@@ -58,6 +58,10 @@
   padding: 0;
 }
 
+html {
+  font-size: 85%; /* Global scaling to 85% to make UI more compact */
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--background);
@@ -87,7 +91,7 @@ button:focus {
 
 /* Layout Components */
 .sidebar-fixed {
-  width: 260px;
+  width: 240px; /* Reduced from 260px */
   height: calc(100vh - 40px);
   position: fixed;
   left: 20px;
@@ -107,8 +111,8 @@ button:focus {
 }
 
 .main-content-structured {
-  margin-left: 300px;
-  width: calc(100% - 300px);
+  margin-left: 280px; /* Reduced from 300px to match sidebar */
+  width: calc(100% - 280px);
   padding: 32px 40px;
   background: var(--background);
   min-height: 100vh;

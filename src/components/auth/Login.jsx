@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
 import { Lock, Mail, Loader2, ShieldCheck, ChevronRight, Calendar, CreditCard, Users } from 'lucide-react';
 
 const Login = () => {
   const { signIn } = useAuth();
+  const { clinicName } = useSettings();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,11 +38,11 @@ const Login = () => {
         <div style={{ position: 'absolute', bottom: '25%', right: '25%', width: '40%', height: '40%', background: 'rgba(79, 70, 229, 0.1)', borderRadius: '50%', filter: 'blur(100px)' }} />
         
         <div className="relative flex-col" style={{ zIndex: 10, width: '100%', maxWidth: '36rem', padding: '0 3rem', paddingTop: '2.5rem' }}>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="bg-primary flex items-center justify-center text-white" style={{ width: '48px', height: '48px', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)', transform: 'rotate(3deg)' }}>
-              <ShieldCheck size={24} strokeWidth={2.5} />
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+              <span className="text-white font-black text-xl">S</span>
             </div>
-            <span className="text-white font-black text-2xl tracking-tighter">SmartDental OS</span>
+            <span className="text-white font-black text-2xl tracking-tighter">{clinicName || 'SmartDental'}</span>
           </div>
 
           <h1 className="font-black text-white tracking-tighter mb-6" style={{ fontSize: '3.5rem', lineHeight: '1.1' }}>
