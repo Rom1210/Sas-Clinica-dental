@@ -114,13 +114,30 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
   }));
 
   const handleSave = async () => {
+    if (!formData.firstName.trim()) {
+      alert('El nombre es obligatorio para el registro básico.');
+      setIsSaving(false);
+      return;
+    }
+
     setIsSaving(true);
     try {
       await addPatient({
         full_name: `${formData.firstName} ${formData.lastName}`.trim(),
-        dni: formData.dni, email: formData.email, phone: formData.whatsapp,
-        birth_date: formData.dob, gender: formData.gender, status: 'active',
-        medical_history: { reason: formData.reason, flags: formData.flags, fuma: formData.fuma, bruxismo: formData.bruxismo }
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        dni: formData.dni || null, 
+        email: formData.email || null, 
+        whatsapp: formData.whatsapp || null,
+        birth_date: formData.dob || null, 
+        gender: formData.gender || null, 
+        status: 'Activo',
+        medical_flags: formData.flags || [],
+        medical_history: { 
+          reason: formData.reason || '', 
+          fuma: formData.fuma, 
+          bruxismo: formData.bruxismo 
+        }
       });
       sfx.success();
       onSuccess(`¡${formData.firstName} ${formData.lastName} registrado con éxito!`);
