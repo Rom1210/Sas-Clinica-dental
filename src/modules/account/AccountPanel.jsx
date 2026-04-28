@@ -57,9 +57,11 @@ const AccountPanel = ({ isOpen, onClose, profile, onLogout }) => {
 
    if (!isOpen) return null;
 
-   const initials = profile?.full_name ? profile.full_name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() : (profile?.email ? profile.email[0].toUpperCase() : 'AK');
-   const displayName = profile?.full_name || 'Admin Khoury';
-   const displayEmail = (profile?.email || 'khouryromero@gmail.com').toLowerCase();
+   const initials = profile?.full_name 
+      ? profile.full_name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() 
+      : (profile?.email ? profile.email[0].toUpperCase() : 'U');
+   const displayName = profile?.full_name || profile?.email?.split('@')[0] || 'Usuario';
+   const displayEmail = (profile?.email || 'No disponible').toLowerCase();
 
    return createPortal(
       <div className="account-panel-root" style={{ position: 'relative', zIndex: 10000 }}>
@@ -269,26 +271,39 @@ const AccountPanel = ({ isOpen, onClose, profile, onLogout }) => {
                            {isUpdating ? 'Actualizando...' : showSuccess ? (<><CheckCircle size={14} /> Guardado</>) : 'Actualizar'}
                         </button>
 
-                        <button
-                           onClick={onLogout}
-                           style={{ 
-                              width: 'fit-content', padding: '8px 20px', 
-                              borderRadius: '14px', background: 'transparent', color: '#94A3B8', 
-                              fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', 
-                              letterSpacing: '0.1em', border: 'none', 
-                              cursor: 'pointer', transition: 'all 0.2s',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                              alignSelf: 'center', marginTop: '10px'
-                           }}
-                           onMouseOver={e => { e.currentTarget.style.color = '#E11D48'; e.currentTarget.style.background = '#FFF1F2'; }}
-                           onMouseOut={e => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = 'transparent'; }}
-                        >
-                           <LogOut size={13} strokeWidth={2.5} />
-                           Cerrar sesión
-                        </button>
                      </div>
                   </div>
                )}
+
+               {/* Botón de Cerrar Sesión - SIEMPRE VISIBLE */}
+               <button
+                  onClick={onLogout}
+                  style={{ 
+                     width: '100%', 
+                     marginTop: '20px',
+                     padding: '18px 0', 
+                     borderRadius: '24px', 
+                     background: '#FFF1F2', 
+                     color: '#E11D48', 
+                     fontWeight: 900, 
+                     fontSize: '13px', 
+                     textTransform: 'uppercase', 
+                     letterSpacing: '0.1em', 
+                     border: '1px solid #FFE4E6', 
+                     cursor: 'pointer',
+                     transition: 'all 0.3s ease',
+                     display: 'flex', 
+                     alignItems: 'center', 
+                     justifyContent: 'center', 
+                     gap: '10px',
+                     boxShadow: '0 4px 12px rgba(225,29,72,0.05)'
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#FFE4E6'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(225,29,72,0.1)'; }}
+                  onMouseOut={e => { e.currentTarget.style.background = '#FFF1F2'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(225,29,72,0.05)'; }}
+               >
+                  <LogOut size={18} strokeWidth={2.5} />
+                  Cerrar sesión
+               </button>
 
                {/* Subscription & Multi-currency */}
                <div style={{ 

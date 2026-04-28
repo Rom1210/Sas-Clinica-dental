@@ -176,7 +176,7 @@ const PatientDashboard = () => {
               </div>
 
               {/* Col 5: Saldo */}
-              <div className="flex flex-col items-end min-w-[100px] flex-1 ml-auto">
+              <div className="flex flex-col items-end min-w-[100px] flex-1">
                 <span className="font-black uppercase text-slate-400 mb-0.5 opacity-70" style={{ fontSize: '8px', letterSpacing: '0.15em' }}>Saldo Deuda</span>
                 <div className="flex flex-col items-end gap-0">
                   <span className={`font-[1000] tracking-tighter ${patient.debt > 0 ? 'text-rose-500' : 'text-emerald-500'}`} style={{ fontSize: '15px' }}>
@@ -184,6 +184,20 @@ const PatientDashboard = () => {
                   </span>
                   {patient.debt > 0 && <span className="font-black text-rose-400 uppercase tracking-widest mt-0.5" style={{ fontSize: '7px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>Pendiente</span>}
                 </div>
+              </div>
+
+              {/* Col 6: Acciones */}
+              <div className="flex items-center justify-end pl-4 ml-auto pointer-events-auto">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPatientToDelete(patient);
+                  }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all border-none bg-transparent cursor-pointer"
+                  title="Eliminar paciente"
+                >
+                  <Trash2 size={16} strokeWidth={2.5} />
+                </button>
               </div>
 
             </div>

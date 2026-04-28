@@ -87,6 +87,7 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
     firstName: '', lastName: '', dni: '',
     email: '', whatsapp: '', dob: '', gender: '',
     reason: '', flags: [], fuma: false, bruxismo: false,
+    asma: '', corazon: '', coagulacion: '', otros: '',
   });
 
   const flagsOptions = ['Alergia a Penicilina', 'Hipertensión', 'Diabetes', 'Embarazo'];
@@ -126,9 +127,9 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
         full_name: `${formData.firstName} ${formData.lastName}`.trim(),
         first_name: formData.firstName,
         last_name: formData.lastName,
-        dni: formData.dni || null, 
-        email: formData.email || null, 
-        whatsapp: formData.whatsapp || null,
+        dni: formData.dni.trim() || null, 
+        email: formData.email.trim() || null, 
+        phone: formData.whatsapp.trim() || null,
         birth_date: formData.dob || null, 
         gender: formData.gender || null, 
         status: 'Activo',
@@ -136,7 +137,11 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
         medical_history: { 
           reason: formData.reason || '', 
           fuma: formData.fuma, 
-          bruxismo: formData.bruxismo 
+          bruxismo: formData.bruxismo,
+          asma: formData.asma,
+          corazon: formData.corazon,
+          coagulacion: formData.coagulacion,
+          otros: formData.otros
         }
       });
       sfx.success();
@@ -257,12 +262,16 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
         </div>
 
         {[
-          { label: 'Asma / Problemas Respiratorios', icon: Activity },
-          { label: 'Antecedentes Cardíacos', icon: Heart },
-          { label: 'Problemas de Coagulación', icon: AlertCircle },
-        ].map(({ label, icon: Icon }) => (
-          <Field key={label} label={label}>
-            <select style={{ ...inputStyle, cursor: 'pointer' }}>
+          { id: 'asma', label: 'Asma / Problemas Respiratorios', icon: Activity },
+          { id: 'corazon', label: 'Antecedentes Cardíacos', icon: Heart },
+          { id: 'coagulacion', label: 'Problemas de Coagulación', icon: AlertCircle },
+        ].map(({ id, label, icon: Icon }) => (
+          <Field key={id} label={label}>
+            <select 
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              value={formData[id] || ''}
+              onChange={e => set(id, e.target.value)}
+            >
               <option value="">Seleccionar...</option>
               <option value="No">No</option>
               <option value="Leve">Sí, Leve</option>
@@ -275,6 +284,8 @@ const PatientRegistration = ({ onClose, onSuccess }) => {
           <textarea
             style={{ ...inputStyle, resize: 'none', height: '80px', paddingTop: '12px' }}
             placeholder="Especifique cualquier otra condición médica relevante..."
+            value={formData.otros || ''}
+            onChange={e => set('otros', e.target.value)}
           />
         </Field>
       </div>
