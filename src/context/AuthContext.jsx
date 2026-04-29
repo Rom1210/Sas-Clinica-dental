@@ -41,8 +41,11 @@ export const AuthProvider = ({ children }) => {
         .eq('id', userId)
         .single();
 
-      if (profileError) throw profileError;
-      setProfile(profileData);
+      if (profileError) {
+        console.warn('Profile fetch error or blocked by RLS:', profileError.message);
+      } else {
+        setProfile(profileData);
+      }
 
       // Fetch active organization (first one for now)
       const { data: orgData, error: orgError } = await supabase

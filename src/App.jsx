@@ -28,7 +28,8 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import SetPassword from './components/auth/SetPassword';
 import TeamManagement from './modules/settings/TeamManagement';
-import AccountPanel from './modules/account/AccountPanel';
+import SettingsLayout from './modules/settings/SettingsLayout';
+import UserProfile from './modules/settings/pages/UserProfile';
 
 // Modules
 import PatientRegistration from './modules/patients/PatientRegistration';
@@ -44,7 +45,10 @@ import UpcomingAppointments from './modules/scheduler/UpcomingAppointments';
 import AppointmentDetails from './modules/scheduler/AppointmentDetails';
 import BIDashboard from './modules/bi/BIDashboard';
 import StatisticsModule from './modules/statistics/StatisticsModule';
-import ControlMaster from './modules/master/ControlMaster';
+import ClinicSettings from './modules/settings/pages/ClinicSettings';
+import FinanceSettings from './modules/settings/pages/FinanceSettings';
+import TeamSettings from './modules/settings/pages/TeamSettings';
+import ServicesSettings from './modules/settings/pages/ServicesSettings';
 import ServiceForm from './modules/settings/ServiceForm';
 import DoctorForm from './modules/settings/DoctorForm';
 import SubscriptionsModule from './modules/subscription/SubscriptionsModule';
@@ -59,7 +63,6 @@ const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPatientModal, setShowPatientModal] = useState(false);
-  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const { isSidebarCollapsed, toggleSidebar, clinicName } = useSettings();
   const [toast, setToast] = useState(null);
 
@@ -91,8 +94,7 @@ const AppContent = () => {
     { id: 'patients', path: '/patients', label: 'Pacientes', icon: <Users size={20} /> },
     { id: 'finance', path: '/finance', label: 'Finanzas (USD/VES)', icon: <CreditCard size={20} /> },
     { id: 'statistics', path: '/statistics', label: 'Estadísticas', icon: <BarChart3 size={20} /> },
-    { id: 'settings', path: '/settings', label: 'Control Maestro', icon: <Settings size={20} /> },
-    { id: 'subscriptions', path: '/subscriptions', label: 'Planes y Pagos', icon: <Crown size={20} /> },
+    { id: 'settings', path: '/settings', label: 'Configuración', icon: <Settings size={20} /> },
   ];
 
   const showSuccessToast = (message) => {
@@ -166,7 +168,7 @@ const AppContent = () => {
           <div 
             className={`flex items-center p-2 hover:bg-slate-50 transition-all rounded-lg group ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`} 
             style={{ cursor: 'pointer' }}
-            onClick={() => setIsUserPanelOpen(true)}
+            onClick={() => navigate('/settings/profile')}
           >
             <div className="avatar group-hover:scale-105 transition-transform" style={{ width: 36, height: 36, minWidth: 36, background: '#EFF6FF', color: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
               {profile?.full_name ? profile.full_name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() : (profile?.email ? profile.email[0].toUpperCase() : 'U')}
@@ -192,29 +194,31 @@ const AppContent = () => {
       <main className={`main-content-structured ${isSidebarCollapsed ? 'main-content-collapsed' : ''}`}>
         <header className="flex justify-end items-center mb-10 translate-y-2">
           <div className="flex items-center gap-4 pt-2">
-            <button
-              onClick={() => setShowPatientModal(true)}
-              style={{ 
-                display: 'flex', alignItems: 'center', gap: '10px', 
-                padding: '0.8rem 2rem', borderRadius: '4rem', 
-                background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', 
-                color: '#fff', fontWeight: 900, fontSize: '12px', 
-                textTransform: 'uppercase', letterSpacing: '0.1em', 
-                border: 'none', cursor: 'pointer', 
-                boxShadow: '0 8px 20px rgba(37,99,235,0.3)', 
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(37,99,235,0.4)';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 20px rgba(37,99,235,0.3)';
-              }}
-            >
-              <Plus size={18} strokeWidth={3} /> NUEVO PACIENTE
-            </button>
+            {!location.pathname.startsWith('/settings') && (
+              <button
+                onClick={() => setShowPatientModal(true)}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '10px', 
+                  padding: '0.8rem 2rem', borderRadius: '4rem', 
+                  background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', 
+                  color: '#fff', fontWeight: 900, fontSize: '12px', 
+                  textTransform: 'uppercase', letterSpacing: '0.1em', 
+                  border: 'none', cursor: 'pointer', 
+                  boxShadow: '0 8px 20px rgba(37,99,235,0.3)', 
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 24px rgba(37,99,235,0.4)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(37,99,235,0.3)';
+                }}
+              >
+                <Plus size={18} strokeWidth={3} /> NUEVO PACIENTE
+              </button>
+            )}
           </div>
         </header>
 
@@ -239,15 +243,25 @@ const AppContent = () => {
               <Route path="/finance" element={<FinanceModule />} />
               <Route path="/paciente/:id/estado-cuenta" element={<PatientFinanceDetail />} />
               <Route path="/statistics" element={<StatisticsModule />} />
-              <Route path="/settings" element={<ControlMaster />} />
-              <Route path="/subscriptions" element={<SubscriptionsModule />} />
               <Route path="/precios" element={<PricingPage />} />
-              <Route path="/settings/new-service" element={<ServiceForm />} />
-              <Route path="/settings/edit-service/:id" element={<ServiceForm />} />
-              <Route path="/settings/new-doctor" element={<DoctorForm />} />
-              <Route path="/settings/edit-doctor/:id" element={<DoctorForm />} />
-              <Route path="/settings/team" element={<TeamManagement />} />
               <Route path="/set-password" element={<SetPassword />} />
+              
+              {/* Nuevo Layout de Configuración Unificado */}
+              <Route path="/settings" element={<SettingsLayout />}>
+                <Route index element={<Navigate to="profile" replace />} />
+                <Route path="profile" element={<UserProfile />} />
+                <Route path="clinic" element={<ClinicSettings />} />
+                <Route path="finance" element={<FinanceSettings />} />
+                <Route path="team" element={<TeamSettings />} />
+                <Route path="services" element={<ServicesSettings />} />
+                <Route path="subscriptions" element={<div className="p-4"><SubscriptionsModule /></div>} />
+                <Route path="new-service" element={<ServiceForm />} />
+                <Route path="edit-service/:id" element={<ServiceForm />} />
+                <Route path="new-doctor" element={<DoctorForm />} />
+                <Route path="edit-doctor/:id" element={<DoctorForm />} />
+                <Route path="roles" element={<TeamManagement />} />
+              </Route>
+
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           )}
@@ -284,17 +298,7 @@ const AppContent = () => {
         </div>
       )}
 
-      {/* User Panel Drawer (Account Module) */}
-      <AccountPanel 
-        isOpen={isUserPanelOpen}
-        onClose={() => setIsUserPanelOpen(false)}
-        user={user}
-        profile={profile}
-        onLogout={() => {
-          setIsUserPanelOpen(false);
-          signOut();
-        }}
-      />
+      {/* User Panel Drawer (Removido a favor de /settings/profile) */}
 
       {/* Toast Notification */}
       {toast && (
@@ -309,8 +313,8 @@ const AppContent = () => {
         </div>
       )}
 
-      {/* AI Assistant — global floating bubble */}
-      {isAuthenticated && <AIAssistant />}
+      {/* AI Assistant — hidden in settings */}
+      {isAuthenticated && !location.pathname.startsWith('/settings') && <AIAssistant />}
     </div>
   );
 };
